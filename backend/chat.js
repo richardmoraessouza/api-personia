@@ -10,7 +10,7 @@ console.log("Chat com IA (digite 'sair' para encerrar)\n");
 
 async function enviarMensagem(mensagem) {
   try {
-    const res = await fetch("http://localhost:3000/chat", {
+    const res = await fetch("https://api-personia.onrender.com/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: mensagem })
