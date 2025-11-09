@@ -27,12 +27,14 @@ export const adicionarPerson = async (req, res) => {
 export const personagens = async (req, res) => {
     try {
         const result = await db.query('SELECT id, nome, fotoia FROM personia.personagens');
+        console.log('Resultado do DB:', result.rows); 
         res.status(200).json(result.rows); 
     } catch (err) {
-        console.error('Erro ao buscar personagens:', err);
-        res.status(500).json({ error: 'Erro ao buscar personagens', details: err.message });
+        console.error('Erro ao buscar personagens completo:', err);
+        res.status(500).json({ error: 'Erro ao buscar personagens', details: err.message || err });
     }
 };
+
 
 // rota de mostrar personagem pelo id
 export const IdPersonagem = async (req, res) => {
