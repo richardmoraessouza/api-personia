@@ -17,6 +17,6 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use("/", router);
 
 app.listen(PORT, () => {
-  console.log(`Servidor rodando em ${PORT}`);
+  console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
 
