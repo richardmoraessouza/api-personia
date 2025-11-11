@@ -1,9 +1,10 @@
 import express from "express";
 import { verifyToken } from './middleware/verifyToken.js';
-import { editarPerfil } from './controller/editarPerfil.js';
+import { editarPerfil } from './controller/editar.js';
 import { adicionarUsuario, loginUsuario, getUsuario, perfilOutroUsuario, nomeCriador } from './controller/usuarios.js';
 import { adicionarPerson, personagens, IdPersonagem} from "./controller/person.js";
 import { chatComPersonagem } from "./controller/conversarPerson.js";
+import { listarSeguidores, deixarDeSeguir, seguirUsuario, listarSeguindo } from "./controller/seguir.js";
 
 const router = express.Router();
 
@@ -36,5 +37,16 @@ router.get('/perfil/:id', perfilOutroUsuario)
 
 // rota para mostra o nome do criado do person
 router.get('/nomeCriador/:id', nomeCriador)
+
+// rota de seguir
+router.post("/seguir", seguirUsuario);
+
+// rota de deixar de seguir
+router.post("/deixar-de-seguir", deixarDeSeguir);
+
+// Listar seguidores / seguindo
+router.get("/seguidores/:id", listarSeguidores);
+router.get("/seguindo/:id", listarSeguindo);
+
 
 export default router;
