@@ -29,19 +29,19 @@ router.get('/personagens', personagens);
 // Chat com personagem
 router.post("/chat/:personagemId", chatComPersonagem);
 
-// rota de buscar personagem pelo id
+// Buscar personagem pelo id
 router.get('/personagens/:id', IdPersonagem)
 
-// rota de mostra perfil de outro usuário
+// Mostra perfil de outro usuário
 router.get('/perfil/:id', perfilOutroUsuario)
 
-// rota para mostra o nome do criado do person
+// Mostra o nome do criado do person
 router.get('/nomeCriador/:id', nomeCriador)
 
-// rota de seguir
+// Seguir
 router.post("/seguir", seguirUsuario);
 
-// rota de deixar de seguir
+// Deixar de seguir
 router.post("/deixar-de-seguir", deixarDeSeguir);
 
 // Listar seguidores / seguindo

@@ -1,6 +1,6 @@
 import db from '../db.js';
 
-// 🧩 Seguir um usuário
+// Seguir um usuário
 export async function seguirUsuario(req, res) {
     const { seguidor_id, seguido_id } = req.body;
 
@@ -23,7 +23,7 @@ export async function seguirUsuario(req, res) {
     }
 }
 
-// 🧩 Deixar de seguir
+// Deixar de seguir
 export async function deixarDeSeguir(req, res) {
     const { seguidor_id, seguido_id } = req.body;
 
@@ -40,7 +40,7 @@ export async function deixarDeSeguir(req, res) {
     }
 }
 
-// 👥 Listar seguidores de um usuário
+// Listar seguidores de um usuário
 export async function listarSeguidores(req, res) {
     const { id } = req.params;
 
@@ -60,7 +60,7 @@ export async function listarSeguidores(req, res) {
     }
 }
 
-// ➡️ Listar quem o usuário está seguindo
+// Listar quem o usuário está seguindo
 export async function listarSeguindo(req, res) {
     const { id } = req.params;
 

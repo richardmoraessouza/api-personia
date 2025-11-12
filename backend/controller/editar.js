@@ -1,5 +1,6 @@
 import db from '../db.js';
 
+// Rota de editar perfil
 export async function editarPerfil(req, res) {
     const { id } = req.params;
     const { nome, foto_perfil, descricao } = req.body;
