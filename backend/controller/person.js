@@ -3,7 +3,7 @@ import db from '../db.js';
 // rota de criar personagens
 export const adicionarPerson = async (req, res) => {
     const { nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, descricao } = req.body;
-    const usuarioId = req.user?.id; // agora pega do token
+    const usuarioId = req.user?.id;
 
     if (!usuarioId) return res.status(401).json({ error: 'Usuário não autenticado' });
 
