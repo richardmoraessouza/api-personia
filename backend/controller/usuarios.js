@@ -11,16 +11,16 @@ const JWT_SECRET = process.env.JWT_SECRET || 'seu_segredo_padrao_muito_seguro';
 
 // 1. Cadastro de usuário
 export const adicionarUsuario = async (req, res) => {
-    const { nome = null, gmail, senha, foto_perfil = null,} = req.body;
+    const { nome = null, gmail, senha, foto_perfil = null, descricao = null} = req.body;
 
     try {
         const senhaHash = await bcrypt.hash(senha, SALT_ROUNDS)
 
         const result = await db.query(
-            `INSERT INTO personia.usuarios (nome, gmail, senha, foto_perfil)
-             VALUES ($1, $2, $3, $4)
+            `INSERT INTO personia.usuarios (nome, gmail, senha, foto_perfil, descricao)
+             VALUES ($1, $2, $3, $4, $5)
              RETURNING id, nome, gmail`,
-            [nome, gmail, senhaHash, foto_perfil,]
+            [nome, gmail, senhaHash, foto_perfil, descricao]
         );
 
         res.status(201).json({

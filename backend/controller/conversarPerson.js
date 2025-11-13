@@ -14,7 +14,6 @@ const openAIKeys = [
   process.env.OPENAI_API_KEY9,
   process.env.OPENAI_API_KEY10,
 ];
-
 // Histórico por personagem
 let chatHistories = {};
 
@@ -80,9 +79,9 @@ export const chatComPersonagem = async (req, res) => {
       : "visitante";
 
     const result = await db.query(
-      `SELECT nome, genero, personalidade, comportamento, estilo, historia, regras
-       FROM personia.personagens
-       WHERE id = $1`,
+      `SELECT nome, genero, personalidade, comportamento, estilo, historia, regras, tipo_personagem
+        FROM personia.personagens
+        WHERE id = $1`,
       [personagemId]
     );
 
@@ -91,31 +90,56 @@ export const chatComPersonagem = async (req, res) => {
     }
 
     const personagem = result.rows[0];
+    let personagemIA = ''
+    if (personagem.tipo_personagem === "ficcional") {
+       personagemIA = `
+        - seu nome é ${personagem.nome} da obra ${personagem.obra}
+        - Se alguém mencionar outro personagem:
+          - Se for da MESMA obra (${personagem.obra}), indique a relação ou sentimento que você tem por ele, como: amor, amizade, ódio, rivalidade, respeito, ciúme, admiração etc.
+          - Se não for da mesma obra ou não conhecer, responda de forma curta dizendo que não conhece ou algo compatível com sua personalidade.
+        - fale e age igual o personagem falaria na obra.
+        - Caso o usuário falar algun personagem da obra fale alguma coisa sobre ele, mas fale curto e direto não descreve o personagem.
+        - Junte a história do seu personagem com essa nova história ${personagem.historia}.
+        - Junte a personalidade do seu personagem com essa nova personalidade ${personagem.historia}.
+        - Responda de forma rápida direta. Não escreva parágrafos longos.
+        - Seja totalmente Fiel ao personagem de ${personagem.nome}.
+        - Fale como se estivesse conversando no WhatsApp.
+        - Use palavras, bordões ou expressões que ${personagem.nome} usaria na obra.
+        - Use humor, sarcasmo ou ironia se isso combinar com ${personagem.nome}.
+        - Evite respostas genéricas ou clichês; tente sempre reagir de forma única.
+        - Às vezes, descreva pequenas ações ou expressões que ${personagem.nome} faria enquanto fala.
+        - Se o usuário ofender, xingar ou provocar, reaja exatamente como o personagem faria na obra: se ele é calmo, fique sério; se ele é explosivo, responda bravo; se ele ignora, finja que não viu. Sempre coerente com sua personalidade.
+        - a vezes você pode puxar assunto do que seu personagem já fez ou vai fazer.
+        - Lembre de pequenas informações mencionadas anteriormente, mas não repita tudo.
+        - Mantenha a personalidade, estilo e histórico do ${personagem.nome} conforme definido.
+        - Obedeça essas regras importantes ${personagem.regras}
+        `
+      } 
+      
+      if (personagem.tipo_personagem == "person") {
+        personagemIA = `
+        - Se o usuário repetir palavras ou frases várias vezes, perceba isso e comente de forma curta, ou peça para ele falar algo diferente.
+        - Fale como se estivesse conversando no WhatsApp.
+        - Responda de forma rápida direta. Não escreva parágrafos longos.
+        - Evite respostas genéricas ou clichês; tente sempre reagir de forma única.
+        - Se o usuário ofender, xingar ou provocar, reaja como estivesse muito bravo ou igual uma personalidade igual essas que você tem ${personagem.personalidade}.Sempre coerente com sua personalidade.
+        - seu nome é ${personagem.nome}
+        - Seu estilo: ${personagem.estilo}
+        - Seu gênero: ${personagem.genero}
+        - Sua história: ${personagem.historia}
+        - Seu comportamento e modo de agir : ${personagem.comportamento}
+        - Sua personalidade: ${personagem.personalidade}
+        - Regras que você deve obedecer: ${personagem.regras}
+        - Fale igual o uma pessoa com a personalidade ${personagem.personalidade} falaria
+        - a vezes você pode puxar assunto do que seu personagem na história dele já fez ou vai fazer.
+   `;
+    }
 
-    const systemPrompt = `
-      Você é "${personagem.nome}" (${personagem.genero || "sem gênero definido"}).
-
-      💬 Estilo de fala:
-      ${personagem.estilo || "Fale naturalmente."}
-
-      💡 Personalidade:
-      ${personagem.personalidade || "Personalidade neutra."}
-
-      ⚙️ Comportamento:
-      ${personagem.comportamento || "Normal."}
-
-      📖 História:
-      ${personagem.historia || "Sem história definida."}
-
-      📜 Regras:
-      ${personagem.regras || "Mantenha-se no personagem."}
-
-      (Demais regras do personagem...)
-    `;
+    const systemPrompt = personagemIA;
 
     const contextMessages = [
       { role: "system", content: systemPrompt },
-      ...chatHistories[chatKey].slice(-7),
+      ...chatHistories[chatKey].slice(-5),
     ];
 
     const reply = await tryOpenAI(contextMessages);

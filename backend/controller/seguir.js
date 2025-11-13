@@ -10,7 +10,7 @@ export async function seguirUsuario(req, res) {
 
     try {
         await db.query(
-            `INSERT INTO personia.seguir (seguidor_id, seguido_id)
+            `INSERT INTO personia.seguidores (seguidor_id, seguido_id)
              VALUES ($1, $2)
              ON CONFLICT DO NOTHING`,
             [seguidor_id, seguido_id]
@@ -29,7 +29,7 @@ export async function deixarDeSeguir(req, res) {
 
     try {
         await db.query(
-            `DELETE FROM personia.seguir WHERE seguidor_id = $1 AND seguido_id = $2`,
+            `DELETE FROM personia.seguidores WHERE seguidor_id = $1 AND seguido_id = $2`,
             [seguidor_id, seguido_id]
         );
 
@@ -47,7 +47,7 @@ export async function listarSeguidores(req, res) {
     try {
         const result = await db.query(
             `SELECT u.id, u.nome, u.foto_perfil
-             FROM personia.seguir s
+             FROM personia.seguidores s
              JOIN personia.usuarios u ON s.seguidor_id = u.id
              WHERE s.seguido_id = $1`,
             [id]
@@ -67,7 +67,7 @@ export async function listarSeguindo(req, res) {
     try {
         const result = await db.query(
             `SELECT u.id, u.nome, u.foto_perfil
-             FROM personia.seguir s
+             FROM personia.seguidores s
              JOIN personia.usuarios u ON s.seguido_id = u.id
              WHERE s.seguidor_id = $1`,
             [id]
