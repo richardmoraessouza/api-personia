@@ -60,6 +60,11 @@ export const adicionarUsuario = async (req, res) => {
     });
 
   } catch (err) {
+    console.error('🔥 ERRO NO CADASTRO:', err);
+    console.log("📩 EMAIL_USER:", process.env.EMAIL_USER);
+    console.log("📩 EMAIL_PASS existe?", process.env.EMAIL_PASS ? "SIM" : "NÃO");
+    console.log("📡 BODY RECEBIDO:", req.body);
+  
     console.error('Erro ao adicionar usuário:', err);
     res.status(500).json({ error: 'Erro ao adicionar usuário' });
   }
@@ -139,6 +144,8 @@ export const loginUsuario = async (req, res) => {
 const enviarEmailRecuperacao = async (gmail, nome, token,) => {
     const transporter = nodemailer.createTransport({
       service: 'gmail',
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
