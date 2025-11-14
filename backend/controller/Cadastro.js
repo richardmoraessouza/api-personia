@@ -27,8 +27,7 @@ const enviarEmailVerificacao = async (gmail, nome, token) => {
     html: `
       <p>Olá ${nome || ''},</p>
       <p>Obrigado por se cadastrar! Clique no link abaixo para cadastra sua conta:</p>
-      <a href="https://api-personia.onrender.com/confirmar-email?token=${token}">Confirmar e-mail</a>
-
+      <a href="https://persoia.netlify.app/confirmar-email?token=${token}">Confirmar e-mail</a>
     `,
   };
 
@@ -153,7 +152,7 @@ const enviarEmailRecuperacao = async (gmail, nome, token,) => {
       html: `
         <p>Olá ${nome || ''},</p>
         <p>Você solicitou redefinição de senha. Clique no link abaixo para criar uma nova senha:</p>
-        <a href="https://api-personia.onrender.com/nova-senha?token=${token}">Redefinir senha</a>
+        <a href="https://persoia.netlify.app/nova-senha?token=${token}">Redefinir senha</a>
         <p>Se você não solicitou, ignore este e-mail.</p>
       `,
     };
