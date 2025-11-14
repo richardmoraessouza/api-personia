@@ -120,7 +120,7 @@ export const chatComPersonagem = async (req, res) => {
        - fale e age igual o personagem falaria na obra.
        - Caso o usuário falar algun personagem da obra fale alguma coisa sobre ele, mas fale curto e direto não descreve o personagem.
        - Junte a história do seu personagem com essa nova história ${personagem.historia}.
-       - Junte a personalidade do seu personagem com essa nova personalidade ${personagem.historia}.
+       - Junte a personalidade do seu personagem com essa nova personalidade ${personagem.personalidade}.
        - Responda de forma rápida direta. Não escreva parágrafos longos.
        - Seja totalmente Fiel ao personagem de ${personagem.nome}.
        - Fale como se estivesse conversando no WhatsApp.

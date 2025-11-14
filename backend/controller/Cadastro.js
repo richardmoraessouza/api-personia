@@ -27,7 +27,7 @@ const enviarEmailVerificacao = async (gmail, nome, token) => {
     html: `
       <p>Olá ${nome || ''},</p>
       <p>Obrigado por se cadastrar! Clique no link abaixo para cadastra sua conta:</p>
-      <a href="https://persoia.netlify.app/confirmar-email?token=${token}">Confirmar e-mail</a>
+      <a href="https://persoia.netlify.app/entrar?token=${token}">Confirmar e-mail</a>
     `,
   };
 
@@ -61,13 +61,15 @@ export const adicionarUsuario = async (req, res) => {
 
   } catch (err) {
     console.error('🔥 ERRO NO CADASTRO:', err);
-    console.log("📩 EMAIL_USER:", process.env.EMAIL_USER);
-    console.log("📩 EMAIL_PASS existe?", process.env.EMAIL_PASS ? "SIM" : "NÃO");
-    console.log("📡 BODY RECEBIDO:", req.body);
-  
-    console.error('Erro ao adicionar usuário:', err);
+    if (err.code === '23505' && err.constraint === 'usuarios_gmail_key') {
+        return res.status(400).json({ error: 'Este Gmail já foi cadastrado!' });
+    }
+
     res.status(500).json({ error: 'Erro ao adicionar usuário' });
-  }
+}
+
+  
+  
 };
 
 // Rota de confirmação de e-mail
@@ -150,6 +152,8 @@ const enviarEmailRecuperacao = async (gmail, nome, token,) => {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
+      logger: true,
+      debug: true,
     });
   
     const mailOptions = {
