@@ -1,4 +1,4 @@
- # API Backend do Chatback
+ # API Backend do PersonIA
  
  Esta API fornece um serviço de backend para interagir com personagens alimentados por IA, permitindo que os usuários conversem com entidades fictícias ou personas gerais de IA. Ela utiliza a API da OpenAI para gerar respostas e gerencia o histórico de conversas, as definições dos personagens e a rotação de chaves de API.
  
@@ -118,10 +118,6 @@
  
  Contributions are welcome! Please feel free to submit pull requests or open issues.
 
- 
-# 📄 Licença
-  
-Este projeto está licenciado sob a Licença MIT.
 
 ## 🌍 Contato
 
