@@ -1,11 +1,6 @@
  # API Backend do PersonIA
  
  Esta API fornece um serviço de backend para interagir com personagens alimentados por IA, permitindo que os usuários conversem com entidades fictícias ou personas gerais de IA. Ela utiliza a API da OpenAI para gerar respostas e gerencia o histórico de conversas, as definições dos personagens e a rotação de chaves de API.
-
- 
-## 🔗 Link do Site
-
-👉 [https://personia.netlify.app/](https://personia.netlify.app/)
  
  ## 🚀 Funcionalidades
  
