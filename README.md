@@ -118,9 +118,8 @@
  
  Contributions are welcome! Please feel free to submit pull requests or open issues.
 
-      ```
  
-📄 Licença
+# 📄 Licença
   
 Este projeto está licenciado sob a Licença MIT.
 
