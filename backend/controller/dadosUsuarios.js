@@ -5,7 +5,7 @@ export const getUsuario = async (req, res) => {
 
   try {
     const result = await db.query(
-      `SELECT id, nome, foto_perfil, descricao FROM personia.usuarios
+      `SELECT id, nome, foto_perfil, descricao FROM personia2.usuarios
        WHERE id = $1`,
       [id]
     );
@@ -26,7 +26,7 @@ export const getUsuario = async (req, res) => {
 export const getNomeUsuario = async (userId) => {
   if (!userId) return null;
   try {
-    const result = await db.query('SELECT nome FROM personia.usuarios WHERE id = $1', [userId]);
+    const result = await db.query('SELECT nome FROM personia2.usuarios WHERE id = $1', [userId]);
     if (result.rows.length > 0) return result.rows[0].nome;
     return null;
   } catch (error) {
@@ -41,7 +41,7 @@ export const perfilOutroUsuario = async (req, res) => {
 
   try {
     const result = await db.query(
-      `SELECT nome, foto_perfil, descricao FROM personia.usuarios WHERE id = $1`,
+      `SELECT nome, foto_perfil, descricao FROM personia2.usuarios WHERE id = $1`,
       [id]
     );
 
@@ -63,7 +63,7 @@ export const nomeCriador = async (req, res) => {
 
   try {
     const result = await db.query(
-      `SELECT nome FROM personia.usuarios WHERE id = $1`,
+      `SELECT nome FROM personia2.usuarios WHERE id = $1`,
       [id]
     );
 

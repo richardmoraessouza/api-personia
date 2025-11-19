@@ -9,7 +9,7 @@ export const adicionarPerson = async (req, res) => {
 
     try {
         const result = await db.query(
-            `INSERT INTO personia.personagens 
+            `INSERT INTO personia2.personagens 
              (nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuario_id, descricao, feitos, obra, tipo_personagem)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, $13)
              RETURNING *`,
@@ -28,7 +28,7 @@ export const adicionarPerson = async (req, res) => {
 // rota de mostrar os personagens no menu
 export const personagens = async (req, res) => {
     try {
-        const result = await db.query('SELECT id, nome, fotoia FROM personia.personagens');
+        const result = await db.query('SELECT id, nome, fotoia FROM personia2.personagens');
         res.status(200).json(result.rows); 
     } catch (err) {
         console.error('Erro ao buscar personagens completo:', err);
@@ -43,7 +43,7 @@ export const IdPersonagem = async (req, res) => {
 
     try {
         const result = await db.query(
-            'SELECT id, nome, fotoia, descricao, usuario_id FROM personia.personagens WHERE id = $1',
+            'SELECT id, nome, fotoia, descricao, usuario_id FROM personia2.personagens WHERE id = $1',
             [id]
         );
 
@@ -53,7 +53,7 @@ export const IdPersonagem = async (req, res) => {
 
         res.status(200).json(result.rows[0]); 
     } catch (err) {
-        console.error('Erro ao buscar personagem pelo ID:', err);
+        console.error('Erro ao buscar personagem:', err);
         res.status(500).json({ error: 'Erro ao buscar personagem', details: err.message });
     }
 };

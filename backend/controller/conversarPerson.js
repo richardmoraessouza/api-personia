@@ -97,7 +97,7 @@ export const chatComPersonagem = async (req, res) => {
       if (personagemCache[id]) return personagemCache[id];
       const result = await db.query(
         `SELECT nome, obra, genero, personalidade, comportamento, estilo, historia, regras, tipo_personagem
-         FROM personia.personagens WHERE id = $1`,
+         FROM personia2.personagens WHERE id = $1`,
         [id]
       );
       if (result.rows.length === 0) return null;
@@ -109,6 +109,8 @@ export const chatComPersonagem = async (req, res) => {
     if (!personagem) return res.status(404).json({ error: "Personagem não encontrado" });
 
     const nomeUsuario = userId ? (await getNomeUsuario(userId)) || "pessoa" : "visitante";
+    let personagemIA = "";
+
 
     // Monta prompt do personagem
     if (personagem.tipo_personagem === "ficcional") {

@@ -1,29 +1,38 @@
 import express from "express";
 import { verifyToken } from './middleware/verifyToken.js';
-import { editarPerfil } from './controller/editar.js';
-import { adicionarUsuario, confirmarEmail, loginUsuario, validarTokenSenha, novaSenha, esqueciSenha,} from "./controller/Cadastro.js"
+import { editarPerfil, editaPerson, dadosPersonagem } from './controller/editarPerfil.js';
+import { adicionarUsuario, loginUsuario, buscarGmail } from './controller/Cadastro.js';
 import { getUsuario, perfilOutroUsuario, nomeCriador } from './controller/dadosUsuarios.js';
-import { adicionarPerson, personagens, IdPersonagem } from "./controller/person.js";
-import { chatComPersonagem } from "./controller/conversarPerson.js";
-import { listarSeguidores, deixarDeSeguir, seguirUsuario, listarSeguindo } from "./controller/seguir.js";
+import { adicionarPerson, personagens, IdPersonagem } from './controller/person.js';
+import { chatComPersonagem } from './controller/conversarPerson.js';
+import { buscar } from './controller/BuscarPersonagens.js';
+import { listarSeguidores, deixarDeSeguir, seguirUsuario, listarSeguindo } from './controller/seguir.js';
 
 const router = express.Router();
 
 // Cadastro de usuário
 router.post('/cadastra', adicionarUsuario);
 
+// Rota para busca o gmail do usuário
+router.get('/buscarUsuario/:gmail', buscarGmail)
+
+// Busca o personagem do usuário
+router.get('/buscarPerson/:usuarioId', buscar)
+
 // Login de usuário
 router.post('/entrar', loginUsuario);
 
-// buscar os dados da própria conta do usuário
+// Buscar os dados da própria conta do usuário
 router.get('/usuario/:id', verifyToken, getUsuario);
-router.post('/esqueci-senha', esqueciSenha);         // envia o e-mail
-router.get('/resetar-senha', validarTokenSenha);     // valida token e redireciona front
-router.post('/nova-senha', novaSenha);              // salva nova senha
+
+// Edita o personagem
+router.put('/editarPerson/:id', editaPerson);
+
+router.get('/dadosPersonagem/:id', dadosPersonagem);
 
 // Editar perfil do usuário
 router.put('/editar/:id', verifyToken, editarPerfil);
-router.get('/confirmar-email', confirmarEmail); // Rota para confirmar o e-mail
+
 // Criar personagem (só usuários logados)
 router.post('/criacao', verifyToken, adicionarPerson);
 
@@ -35,6 +44,7 @@ router.post("/chat/:personagemId", chatComPersonagem);
 
 // Buscar personagem pelo id
 router.get('/personagens/:id', IdPersonagem)
+
 
 // Mostra perfil de outro usuário
 router.get('/perfil/:id', perfilOutroUsuario)
