@@ -11,7 +11,7 @@ const openAIKeys = [
   process.env.OPENAI_API_KEY5,
 ];
 
-let keyIndex = 0; // índice da próxima chave
+let keyIndex = 0;
 let keyStatus = openAIKeys.map(() => true); 
 
 const getNextActiveKey = () => {
