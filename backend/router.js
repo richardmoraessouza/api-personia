@@ -49,7 +49,7 @@ router.get('/personagens/:id', IdPersonagem)
 // Mostra perfil de outro usuário
 router.get('/perfil/:id', perfilOutroUsuario)
 
-// Mostra o nome do criado do person
+// Mostra o nome do criado do personagem
 router.get('/nomeCriador/:id', nomeCriador)
 
 // Seguir
