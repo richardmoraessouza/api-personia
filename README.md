@@ -1,123 +1,503 @@
- # API Backend do PersonIA
- 
- Esta API fornece um serviço de backend para interagir com personagens alimentados por IA, permitindo que os usuários conversem com entidades fictícias ou personas gerais de IA. Ela utiliza a API da OpenAI para gerar respostas e gerencia o histórico de conversas, as definições dos personagens e a rotação de chaves de API.
- 
- ## 🚀 Funcionalidades
- 
- *   **Interação com Personagens via IA**: Converse com personagens definidos em um banco de dados PostgreSQL.
- *   **Dois Tipos de Personagem**:
-     *   **Personagens Fictícios**: A persona da IA é criada com base no nome, obra, personalidade, história e regras de um personagem fictício específico.
-     *   **Personas Gerais**: A persona da IA é construída em torno de uma "pessoa" geral com estilo, gênero, história, comportamento e personalidade definidos.
- *   **Rotação de Chaves da API OpenAI**: Alterna automaticamente entre várias chaves da API OpenAI para lidar com limites de taxa e falhas. As chaves são reativadas a cada 5 minutos.
- *   **Gerenciamento de Histórico de Chat**: Mantém um histórico de chat de curto prazo para cada interação usuário-personagem para fornecer contexto à IA.
- *   **Limites para Usuários Anônimos**: Implementa um limite de 20 mensagens para usuários anônimos para incentivar o login.
- *   **Geração Dinâmica de Prompts**: Constrói prompts de sistema detalhados para a IA com base nos atributos do personagem armazenados no banco de dados.
- 
- ## 🛠️ Tecnologias Utilizadas
- 
- *   **Node.js**: Ambiente de execução JavaScript.
- *   **Express.js**: Framework de aplicação web para Node.js.
- *   **API da OpenAI**: Para processamento de linguagem natural e geração de respostas de IA.
- *   **PostgreSQL**: Banco de dados relacional para armazenar dados dos personagens.
- *   **`dotenv`**: Para gerenciar variáveis de ambiente.
- 
- ## ⚙️ Configuração
- 
- Siga estes passos para colocar o projeto em funcionamento na sua máquina local.
- 
- ### Pré-requisitos
- 
- *   Node.js (versão LTS recomendada)
- *   Banco de dados PostgreSQL
- *   Chaves da API da OpenAI (pelo menos uma, mas várias são recomendadas para a rotação)
- 
- ### Instalação
- 
- 1.  **Clone o repositório:**
-     ```bash
-     git clone <repository-url>
-     cd chatback/backend
-     ```
- 2.  **Instale as dependências:**
-     ```bash
-     npm install
-     ```
- 3.  **Crie um arquivo `.env`:**
-     No diretório `backend`, crie um arquivo chamado `.env` e adicione suas variáveis de ambiente.
- 
-     ```
-     DATABASE_URL="postgresql://user:password@host:port/database"
-     OPENAI_API_KEY="sua_chave_openai_1"
-     OPENAI_API_KEY2="sua_chave_openai_2"
-     OPENAI_API_KEY3="sua_chave_openai_3"
-     OPENAI_API_KEY4="sua_chave_openai_4"
-     OPENAI_API_KEY5="sua_chave_openai_5"
-     # Adicione mais chaves conforme necessário, seguindo o padrão OPENAI_API_KEY[N]
-     ```
-     *Substitua os valores pelos dados de conexão do seu banco de dados e suas chaves da API da OpenAI.*
- 
- ### Configuração do Banco de Dados
- 
- Garanta que seu banco de dados PostgreSQL tenha um schema chamado `personia2` e uma tabela chamada `personagens` com a seguinte estrutura (ou similar):
- 
- ```sql
- CREATE SCHEMA IF NOT EXISTS personia2;
- 
- CREATE TABLE personia2.personagens (
-     id SERIAL PRIMARY KEY,
-     nome VARCHAR(255) NOT NULL,
-     obra VARCHAR(255), -- Relevante para personagens fictícios
-     genero VARCHAR(50),
-     personalidade TEXT,
-     comportamento TEXT,
-     estilo TEXT,
-     historia TEXT,
-     regras TEXT,
-     tipo_personagem VARCHAR(50) NOT NULL -- 'ficcional' ou 'person'
- );
- ```
- 
- Populate this table with your desired character data.
- 
- ### Running the Server
- 
- ```bash
- npm start
- ```
- The server will typically run on `http://localhost:3000` (or the port defined in your Express app).
- 
- ## 🚀 API Endpoints
- 
- ### `POST /chat/:personagemId`
- 
- Sends a message to a specific AI character and receives a response.
- 
- *   **URL:** `/chat/:personagemId`
- *   **Method:** `POST`
- *   **URL Parameters:**
-     *   `personagemId` (Integer): The ID of the character to chat with.
- *   **Request Body (JSON):**
-     ```json
-     {
-       "message": "Olá, como você está?",
-       "userId": 123,      // Optional: User ID for logged-in users
-       "anonId": "abc-123" // Optional: Anonymous ID for non-logged-in users (if userId is not provided)
-     }
-     ```
- *   **Success Response (200 OK):**
-     ```json
-     {
-       "reply": "Estou bem, obrigado por perguntar!"
-     }
-     ```
- *   **Error Responses:**
-     *   `400 Bad Request`: If `message` is empty or `personagemId` is invalid.
-     *   `404 Not Found`: If the character with the given `personagemId` does not exist.
-     *   `500 Internal Server Error`: For other server-side errors or if no OpenAI API key is available.
- 
- 
- Contributions are welcome! Please feel free to submit pull requests or open issues.
+# 🎭 PersonIA - API Backend
 
+API RESTful para interação com personagens alimentados por Inteligência Artificial. Permite que usuários conversem com personagens fictícios ou personas personalizadas através de uma interface de chat inteligente.
+
+## ✨ Funcionalidades Principais
+
+- 💬 **Chat com Personagens IA**: Converse com personagens alimentados por IA com personalidades únicas
+- 🎨 **Dois Tipos de Personagens**: 
+  - Personagens fictícios de obras conhecidas
+  - Personas personalizadas criadas pelos usuários
+- 👤 **Sistema de Usuários**: Cadastro, login e perfis personalizados
+- 🔐 **Autenticação JWT**: Sistema seguro de autenticação
+- 📊 **Gerenciamento de Personagens**: Crie, edite e gerencie seus personagens
+- 👥 **Sistema Social**: Siga outros usuários e veja seus personagens
+- 🎯 **Limite para Anônimos**: Usuários não logados têm limite de 20 mensagens
+
+## 🛠️ Tecnologias
+
+- **Node.js** + **Express.js**
+- **PostgreSQL**
+- **OpenAI API** (GPT-4o-mini)
+- **JWT** para autenticação
+- **CORS** habilitado
+
+## 📦 Instalação
+
+### Pré-requisitos
+
+- Node.js (versão LTS recomendada)
+- PostgreSQL instalado e configurado
+- Chaves da API OpenAI
+
+### Passos
+
+1. Clone o repositório:
+```bash
+git clone <repository-url>
+cd chatback/backend
+```
+
+2. Instale as dependências:
+```bash
+npm install
+```
+
+3. Inicie o servidor:
+```bash
+npm start
+```
+
+Para desenvolvimento com auto-reload:
+```bash
+npm run dev
+```
+
+O servidor estará rodando em `http://localhost:3000` (ou na porta definida no `.env`).
+
+## 📚 Documentação da API
+
+### Base URL
+```
+http://localhost:3000
+```
+
+### Autenticação
+
+Alguns endpoints requerem autenticação via JWT. Para autenticar, inclua o token no header:
+
+```
+Authorization: Bearer <seu_token_jwt>
+```
+
+---
+
+## 🔐 Autenticação e Usuários
+
+### `POST /cadastra`
+Cadastra um novo usuário.
+
+**Request Body:**
+```json
+{
+  "nome": "João Silva",
+  "gmail": "joao@example.com",
+  "foto_perfil": "https://example.com/foto.jpg",
+  "descricao": "Descrição do perfil"
+}
+```
+
+**Response (201):**
+```json
+{
+  "mensagem": "Cadastro realizado!",
+  "id": 1,
+  "nome": "João Silva",
+  "gmail": "joao@example.com"
+}
+```
+
+### `POST /entrar`
+Realiza login e retorna token JWT.
+
+**Request Body:**
+```json
+{
+  "gmail": "joao@example.com"
+}
+```
+
+**Response (200):**
+```json
+{
+  "id": 1,
+  "nome": "João Silva",
+  "gmail": "joao@example.com",
+  "foto_perfil": "https://example.com/foto.jpg",
+  "descricao": "Descrição do perfil",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+### `GET /usuario/:id`
+Busca dados do próprio usuário (requer autenticação).
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Response (200):**
+```json
+{
+  "id": 1,
+  "nome": "João Silva",
+  "foto_perfil": "https://example.com/foto.jpg",
+  "descricao": "Descrição do perfil"
+}
+```
+
+### `GET /buscarUsuario/:gmail`
+Busca usuário pelo Gmail.
+
+**Response (200):**
+```json
+{
+  "gmail": "joao@example.com",
+  "nome": "João Silva",
+  "foto_perfil": "https://example.com/foto.jpg"
+}
+```
+
+### `PUT /editar/:id`
+Edita perfil do usuário (requer autenticação).
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+```json
+{
+  "nome": "João Silva Atualizado",
+  "foto_perfil": "https://example.com/nova-foto.jpg",
+  "descricao": "Nova descrição"
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Perfil atualizado com sucesso!",
+  "usuario_atualizado": {
+    "id": 1,
+    "nome": "João Silva Atualizado",
+    "gmail": "joao@example.com",
+    "foto_perfil": "https://example.com/nova-foto.jpg",
+    "descricao": "Nova descrição"
+  }
+}
+```
+
+### `GET /perfil/:id`
+Busca perfil de outro usuário.
+
+**Response (200):**
+```json
+{
+  "nome": "Maria Santos",
+  "foto_perfil": "https://example.com/foto.jpg",
+  "descricao": "Descrição do perfil"
+}
+```
+
+---
+
+## 🎭 Personagens
+
+### `GET /personagens`
+Lista todos os personagens disponíveis.
+
+**Response (200):**
+```json
+[
+  {
+    "id": 1,
+    "nome": "Sherlock Holmes",
+    "fotoia": "https://example.com/sherlock.jpg"
+  },
+  {
+    "id": 2,
+    "nome": "Personagem Personalizado",
+    "fotoia": "https://example.com/personagem.jpg"
+  }
+]
+```
+
+### `GET /personagens/:id`
+Busca detalhes de um personagem específico.
+
+**Response (200):**
+```json
+{
+  "id": 1,
+  "nome": "Sherlock Holmes",
+  "fotoia": "https://example.com/sherlock.jpg",
+  "descricao": "Detetive famoso",
+  "usuario_id": 5
+}
+```
+
+### `GET /dadosPersonagem/:id`
+Busca todos os dados completos de um personagem.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "personagem": {
+    "id": 1,
+    "nome": "Sherlock Holmes",
+    "obra": "Sherlock Holmes",
+    "genero": "Masculino",
+    "personalidade": "Analítico, observador...",
+    "comportamento": "Metódico...",
+    "estilo": "Formal",
+    "historia": "História do personagem...",
+    "regras": "Regras específicas...",
+    "tipo_personagem": "ficcional",
+    "fotoia": "https://example.com/sherlock.jpg",
+    "descricao": "Detetive famoso",
+    "usuario_id": 5
+  }
+}
+```
+
+### `GET /buscarPerson/:usuarioId`
+Busca todos os personagens criados por um usuário específico.
+
+**Response (200):**
+```json
+[
+  {
+    "id": 1,
+    "nome": "Personagem 1",
+    "fotoia": "https://example.com/foto1.jpg",
+    "descricao": "Descrição",
+    "tipo_personagem": "ficcional"
+  },
+  {
+    "id": 2,
+    "nome": "Personagem 2",
+    "fotoia": "https://example.com/foto2.jpg",
+    "descricao": "Descrição",
+    "tipo_personagem": "person"
+  }
+]
+```
+
+### `POST /criacao`
+Cria um novo personagem (requer autenticação).
+
+**Headers:**
+```
+Authorization: Bearer <token>
+```
+
+**Request Body:**
+```json
+{
+  "nome": "Meu Personagem",
+  "genero": "Masculino",
+  "personalidade": "Extrovertido, amigável",
+  "comportamento": "Sempre positivo",
+  "estilo": "Casual",
+  "historia": "História do personagem...",
+  "fotoia": "https://example.com/foto.jpg",
+  "regras": "Regras específicas...",
+  "descricao": "Descrição do personagem",
+  "feitos": "Feitos do personagem",
+  "obra": "Nome da obra (opcional para personagens fictícios)",
+  "tipo_personagem": "person"
+}
+```
+
+**Response (201):**
+```json
+{
+  "id": 10,
+  "nome": "Meu Personagem",
+  "genero": "Masculino",
+  ...
+}
+```
+
+### `PUT /editarPerson/:id`
+Edita um personagem existente.
+
+**Request Body:**
+```json
+{
+  "nome": "Personagem Atualizado",
+  "genero": "Feminino",
+  "personalidade": "Nova personalidade",
+  "comportamento": "Novo comportamento",
+  "estilo": "Novo estilo",
+  "historia": "Nova história",
+  "fotoia": "https://example.com/nova-foto.jpg",
+  "regras": "Novas regras",
+  "descricao": "Nova descrição",
+  "obra": "Nova obra",
+  "tipo_personagem": "ficcional"
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Personagem atualizado com sucesso!",
+  "personagem_atualizado": {
+    "id": 1,
+    "nome": "Personagem Atualizado",
+    ...
+  }
+}
+```
+
+### `GET /nomeCriador/:id`
+Busca o nome do criador de um personagem.
+
+**Response (200):**
+```json
+{
+  "nome": "João Silva"
+}
+```
+
+---
+
+## 💬 Chat
+
+### `POST /chat/:personagemId`
+Envia uma mensagem para um personagem e recebe resposta da IA.
+
+**Request Body:**
+```json
+{
+  "message": "Olá, como você está?",
+  "userId": 123,
+  "anonId": "abc-123"
+}
+```
+
+**Parâmetros:**
+- `message` (obrigatório): Mensagem a ser enviada
+- `userId` (opcional): ID do usuário logado
+- `anonId` (opcional): ID anônimo para usuários não logados
+
+**Response (200):**
+```json
+{
+  "reply": "Olá! Estou muito bem, obrigado por perguntar!"
+}
+```
+
+**Limitações:**
+- Usuários anônimos têm limite de 20 mensagens
+- Após o limite, é necessário fazer login para continuar
+
+**Códigos de Erro:**
+- `400`: Mensagem vazia ou ID de personagem inválido
+- `404`: Personagem não encontrado
+- `500`: Erro interno do servidor ou chaves de API indisponíveis
+
+---
+
+## 👥 Sistema Social
+
+### `POST /seguir`
+Segue um usuário.
+
+**Request Body:**
+```json
+{
+  "seguidor_id": 1,
+  "seguido_id": 2
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Agora você está seguindo este usuário!"
+}
+```
+
+### `POST /deixar-de-seguir`
+Deixa de seguir um usuário.
+
+**Request Body:**
+```json
+{
+  "seguidor_id": 1,
+  "seguido_id": 2
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Você deixou de seguir este usuário."
+}
+```
+
+### `GET /seguidores/:id`
+Lista os seguidores de um usuário.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "seguidores": [
+    {
+      "id": 3,
+      "nome": "Maria",
+      "foto_perfil": "https://example.com/foto.jpg"
+    },
+    {
+      "id": 5,
+      "nome": "Pedro",
+      "foto_perfil": "https://example.com/foto2.jpg"
+    }
+  ]
+}
+```
+
+### `GET /seguindo/:id`
+Lista os usuários que um usuário está seguindo.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "seguindo": [
+    {
+      "id": 2,
+      "nome": "Ana",
+      "foto_perfil": "https://example.com/foto.jpg"
+    }
+  ]
+}
+```
+
+---
+
+## 📝 Códigos de Status HTTP
+
+- `200` - Sucesso
+- `201` - Criado com sucesso
+- `400` - Requisição inválida
+- `401` - Não autenticado / Token inválido
+- `404` - Recurso não encontrado
+- `500` - Erro interno do servidor
+
+---
+
+## 🔒 Segurança
+
+- Autenticação JWT para endpoints protegidos
+- Validação de dados de entrada
+- CORS configurado
+- Limites de uso para usuários anônimos
+- Rotação automática de chaves de API
+
+
+---
 
 ## 🌍 Contato
 
@@ -126,4 +506,8 @@
 - 📱 [WhatsApp](https://wa.me/5547999326217?text=Olá%20Richard%2C%20encontrei%20seu%20perfil%20no%20GitHub!)
 - 📧 richardmoraessouza2006@gmail.com
 
+---
 
+## 🤝 Contribuindo
+
+Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests.
