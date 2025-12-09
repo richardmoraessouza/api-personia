@@ -2,6 +2,12 @@
 
 API RESTful para interação com personagens alimentados por Inteligência Artificial. Permite que usuários conversem com personagens fictícios ou personas personalizadas através de uma interface de chat inteligente.
 
+## 🔗 Links
+
+- 🌐 **Aplicação Web**: [https://personia.netlify.app/](https://personia.netlify.app/)
+- 📦 **Repositório GitHub**: [https://github.com/richardmoraessouza/api-personia](https://github.com/richardmoraessouza/api-personia)
+- 🚀 **API em Produção**: [https://api-personia.onrender.com](https://api-personia.onrender.com)
+
 ## ✨ Funcionalidades Principais
 
 - 💬 **Chat com Personagens IA**: Converse com personagens alimentados por IA com personalidades únicas
@@ -34,8 +40,8 @@ API RESTful para interação com personagens alimentados por Inteligência Artif
 
 1. Clone o repositório:
 ```bash
-git clone <repository-url>
-cd chatback/backend
+git clone https://github.com/richardmoraessouza/api-personia.git
+cd api-personia/backend
 ```
 
 2. Instale as dependências:
@@ -58,6 +64,13 @@ O servidor estará rodando em `http://localhost:3000` (ou na porta definida no `
 ## 📚 Documentação da API
 
 ### Base URL
+
+**Produção:**
+```
+https://api-personia.onrender.com
+```
+
+**Desenvolvimento Local:**
 ```
 http://localhost:3000
 ```
