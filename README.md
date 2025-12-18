@@ -1,4 +1,4 @@
-# 🎭 PersonIA - API Backend
+# PersonIA - API Backend
 
 API RESTful para interação com personagens alimentados por Inteligência Artificial. Permite que usuários conversem com personagens fictícios ou personas personalizadas através de uma interface de chat inteligente.
 
