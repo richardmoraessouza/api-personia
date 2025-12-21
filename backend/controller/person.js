@@ -2,18 +2,23 @@ import db from '../db.js';
 
 // rota de criar personagens
 export const adicionarPerson = async (req, res) => {
-    const { nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, descricao, feitos, obra, tipo_personagem } = req.body;
+    const { nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, descricao, feitos, obra, tipo_personagem, figurinhas } = req.body;
     const usuarioId = req.user?.id;
 
     if (!usuarioId) return res.status(401).json({ error: 'Usuário não autenticado' });
 
     try {
+        // garante que figurinhas é um array e limita a 6
+        const figurinhasFiltradas = Array.isArray(figurinhas)
+            ? figurinhas.slice(0, 6)
+            : [];
+
         const result = await db.query(
             `INSERT INTO personia2.personagens 
-             (nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuario_id, descricao, feitos, obra, tipo_personagem)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, $13)
+             (nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuario_id, descricao, feitos, obra, tipo_personagem, figurinhas)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
              RETURNING *`,
-            [nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuarioId, descricao, feitos, obra, tipo_personagem]
+            [nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuarioId, descricao, feitos, obra, tipo_personagem, figurinhasFiltradas]
         );
 
         res.status(201).json(result.rows[0]);
@@ -22,8 +27,6 @@ export const adicionarPerson = async (req, res) => {
         res.status(500).json({ error: 'Erro ao adicionar personagem', details: err.message });
     }
 };
-
-
 
 // rota de mostrar os personagens no menu
 export const personagens = async (req, res) => {
