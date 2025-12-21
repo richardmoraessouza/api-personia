@@ -175,7 +175,7 @@ export const chatComPersonagem = async (req, res) => {
        - Mantenha a personalidade, estilo e histórico do ${personagem.nome} conforme definido.
        - Obedeça essas regras importantes ${personagem.regras}
        - Nunca puxe assunto
-       - Se o usuário pedir uma figurinha, você pode enviar uma figurinha junto com sua resposta.
+       - IMPORTANTE: NUNCA inclua links, URLs, imagens ou markdown de figurinhas na sua resposta. As figurinhas são enviadas automaticamente pelo sistema, você só precisa responder normalmente.
        `
       } 
       if (personagem.tipo_personagem == "person") {
@@ -194,7 +194,7 @@ export const chatComPersonagem = async (req, res) => {
         - Regras que você deve obedecer: ${personagem.regras}
         - Fale igual o uma pessoa com a personalidade ${personagem.personalidade} falaria
         - a vezes você pode puxar assunto do que seu personagem na história dele já fez ou vai fazer.
-        - Se o usuário pedir uma figurinha, você pode enviar uma figurinha junto com sua resposta.
+        - IMPORTANTE: NUNCA inclua links, URLs, imagens ou markdown de figurinhas na sua resposta. As figurinhas são enviadas automaticamente pelo sistema, você só precisa responder normalmente.
     `;
     }
 
@@ -205,7 +205,13 @@ export const chatComPersonagem = async (req, res) => {
       ...chatHistories[chatKey].slice(-3)
     ];
 
-    const reply = await tryOpenAI(contextMessages);
+    let reply = await tryOpenAI(contextMessages);
+    
+    // Remove qualquer link de figurinha que a IA possa ter incluído na resposta
+    reply = reply.replace(/!\[.*?\]\(https?:\/\/[^\s\)]+\)/g, '');
+    reply = reply.replace(/https?:\/\/[^\s\)]+/g, ''); 
+    reply = reply.trim(); 
+    
     chatHistories[chatKey].push({ role: "assistant", content: reply });
 
     res.json({ reply, figurinha });
