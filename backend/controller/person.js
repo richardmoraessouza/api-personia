@@ -40,7 +40,8 @@ export const personagens = async (req, res) => {
 };
 
 
-// rota de mostrar personagem pelo id
+// rota de mostrar personagem pelo idfigurinhas TEXT[] DEFAULT '{}'
+
 export const IdPersonagem = async (req, res) => {
     const { id } = req.params;
 
