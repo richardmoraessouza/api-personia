@@ -138,14 +138,20 @@ export const chatComPersonagem = async (req, res) => {
 
     // Escolhe uma figurinha se o usuário pediu ou aleatoriamente
     let figurinha = null;
+    let responderSóComFigurinha = false;
+    
     if (figurinhasArray.length > 0) {
       if (pediuFigurinha) {
         // Se pediu, sempre envia uma figurinha
         figurinha = figurinhasArray[Math.floor(Math.random() * figurinhasArray.length)];
+        // 30% de chance de responder só com figurinha quando pediu
+        responderSóComFigurinha = Math.random() < 0.2;
       } else {
-        // Caso contrário, 25% de chance de enviar aleatoriamente
-        if (Math.random() < 0.7) {
+        // Caso contrário, 70% de chance de enviar aleatoriamente
+        if (Math.random() < 0.2) {
           figurinha = figurinhasArray[Math.floor(Math.random() * figurinhasArray.length)];
+          // 20% de chance de responder só com figurinha quando não pediu
+          responderSóComFigurinha = Math.random() < 0.2;
         }
       }
     }
@@ -175,7 +181,8 @@ export const chatComPersonagem = async (req, res) => {
        - Mantenha a personalidade, estilo e histórico do ${personagem.nome} conforme definido.
        - Obedeça essas regras importantes ${personagem.regras}
        - Nunca puxe assunto
-       - IMPORTANTE: NUNCA inclua links, URLs, imagens ou markdown de figurinhas na sua resposta. As figurinhas são enviadas automaticamente pelo sistema, você só precisa responder normalmente.
+       - IMPORTANTE: NUNCA inclua links, URLs, imagens ou markdown de figurinhas na sua resposta. NUNCA mencione que está enviando figurinha, enviando sticker ou qualquer coisa do tipo. As figurinhas são enviadas automaticamente pelo sistema de forma silenciosa, você só precisa responder normalmente como se estivesse conversando normalmente.
+       - Se o usuário pedir figurinha, sticker ou algo similar, a figurinha JÁ SERÁ ENVIADA AUTOMATICAMENTE pelo sistema. Você NÃO deve dizer que não pode mandar, que não tem figurinha ou qualquer resposta negativa. Apenas responda normalmente, como se a figurinha já tivesse sido enviada. Pode confirmar de forma positiva e natural, mas nunca diga que não vai mandar ou que não pode.
        `
       } 
       if (personagem.tipo_personagem == "person") {
@@ -194,23 +201,48 @@ export const chatComPersonagem = async (req, res) => {
         - Regras que você deve obedecer: ${personagem.regras}
         - Fale igual o uma pessoa com a personalidade ${personagem.personalidade} falaria
         - a vezes você pode puxar assunto do que seu personagem na história dele já fez ou vai fazer.
-        - IMPORTANTE: NUNCA inclua links, URLs, imagens ou markdown de figurinhas na sua resposta. As figurinhas são enviadas automaticamente pelo sistema, você só precisa responder normalmente.
+        - IMPORTANTE: NUNCA inclua links, URLs, imagens ou markdown de figurinhas na sua resposta. NUNCA mencione que está enviando figurinha, enviando sticker ou qualquer coisa do tipo. As figurinhas são enviadas automaticamente pelo sistema de forma silenciosa, você só precisa responder normalmente como se estivesse conversando normalmente.
+        - Se o usuário pedir figurinha, sticker ou algo similar, a figurinha JÁ SERÁ ENVIADA AUTOMATICAMENTE pelo sistema. Você NÃO deve dizer que não pode mandar, que não tem figurinha ou qualquer resposta negativa. Apenas responda normalmente, como se a figurinha já tivesse sido enviada. Pode confirmar de forma positiva e natural, mas nunca diga que não vai mandar ou que não pode.
     `;
     }
 
     const systemPrompt = personagemIA;
 
+    // Adiciona contexto sobre figurinha se o usuário pediu
+    let contextExtra = "";
+    if (pediuFigurinha && figurinhasArray.length > 0) {
+      contextExtra = "\n\n[NOTA DO SISTEMA: O usuário pediu uma figurinha. Uma figurinha será enviada automaticamente junto com sua resposta. Responda normalmente, como se a figurinha já tivesse sido enviada. NÃO diga que não pode mandar ou qualquer resposta negativa.]";
+    }
+
     const contextMessages = [
-      { role: "system", content: systemPrompt },
+      { role: "system", content: systemPrompt + contextExtra },
       ...chatHistories[chatKey].slice(-3)
     ];
 
-    let reply = await tryOpenAI(contextMessages);
+    let reply = "";
     
-    // Remove qualquer link de figurinha que a IA possa ter incluído na resposta
-    reply = reply.replace(/!\[.*?\]\(https?:\/\/[^\s\)]+\)/g, '');
-    reply = reply.replace(/https?:\/\/[^\s\)]+/g, ''); 
-    reply = reply.trim(); 
+    // Se não for para responder só com figurinha, gera resposta da IA
+    if (!responderSóComFigurinha) {
+      reply = await tryOpenAI(contextMessages);
+      
+      // Remove qualquer link de figurinha que a IA possa ter incluído na resposta
+      reply = reply.replace(/!\[.*?\]\(https?:\/\/[^\s\)]+\)/g, '');
+      reply = reply.replace(/https?:\/\/[^\s\)]+/g, ''); 
+      
+      // Remove menções a "enviando figurinha", "enviando sticker", etc.
+      reply = reply.replace(/\*?[Ee]nviando\s+(figurinha|sticker)\*?/gi, '');
+      reply = reply.replace(/[Ee]nviando\s+(figurinha|sticker)/gi, '');
+      reply = reply.replace(/\*?[Mm]andando\s+(figurinha|sticker)\*?/gi, '');
+      reply = reply.replace(/[Mm]andando\s+(figurinha|sticker)/gi, '');
+      
+      // Remove respostas negativas sobre não poder mandar figurinha
+      reply = reply.replace(/não\s+(posso|consigo|vou)\s+mandar\s+(figurinha|sticker)/gi, '');
+      reply = reply.replace(/não\s+tenho\s+(figurinha|sticker)/gi, '');
+      reply = reply.replace(/não\s+posso\s+enviar\s+(figurinha|sticker)/gi, '');
+      reply = reply.replace(/não\s+consigo\s+enviar\s+(figurinha|sticker)/gi, '');
+      reply = reply.replace(/desculpa,\s+mas\s+não\s+(posso|consigo)/gi, '');
+      reply = reply.trim(); 
+    }
     
     chatHistories[chatKey].push({ role: "assistant", content: reply });
 

@@ -62,7 +62,10 @@ export const dadosPersonagem = async (req, res) => {
 // Atualizar personagem
 export const editaPerson = async (req, res) => {
     const { id } = req.params;
-    const { nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, descricao, obra, tipo_personagem } = req.body;
+    const { nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, descricao, obra, tipo_personagem, figurinhas } = req.body;
+
+    // Remove valores vazios
+    const figurinhasFiltradas = figurinhas.filter(f => f !== '');
 
     try {
         const result = await db.query(
@@ -77,10 +80,11 @@ export const editaPerson = async (req, res) => {
                  regras = $8,
                  descricao = $9,
                  obra = $10,
-                 tipo_personagem = $11
-             WHERE id = $12
+                 tipo_personagem = $11,
+                 figurinhas = $12
+             WHERE id = $13
              RETURNING *`,
-            [nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, descricao, obra, tipo_personagem, id]
+            [nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, descricao, obra, tipo_personagem, figurinhasFiltradas, id] // <--- aqui removi JSON.stringify
         );
 
         if (result.rows.length === 0) {
@@ -100,3 +104,4 @@ export const editaPerson = async (req, res) => {
         res.status(500).json({ success: false, error: "Erro interno ao atualizar personagem." });
     }
 };
+
