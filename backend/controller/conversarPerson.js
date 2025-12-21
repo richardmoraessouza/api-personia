@@ -96,7 +96,7 @@ export const chatComPersonagem = async (req, res) => {
     const getPersonagem = async (id) => {
       if (personagemCache[id]) return personagemCache[id];
       const result = await db.query(
-        `SELECT nome, obra, genero, personalidade, comportamento, estilo, historia, regras, tipo_personagem
+        `SELECT nome, obra, genero, personalidade, comportamento, estilo, historia, regras, tipo_personagem, figurinhas
          FROM personia2.personagens WHERE id = $1`,
         [id]
       );
@@ -110,6 +110,15 @@ export const chatComPersonagem = async (req, res) => {
 
     const nomeUsuario = userId ? (await getNomeUsuario(userId)) || "pessoa" : "visitante";
     let personagemIA = "";
+
+   // Escolhe aleatoriamente se vai enviar uma figurinha
+   let figurinha = null;
+    if (Array.isArray(personagem.figurinhas) && personagem.figurinhas.length > 0) {
+      const enviarFigurinha = Math.random() < 0.3; // 30% de chance
+      if (enviarFigurinha) {
+        figurinha = personagem.figurinhas[Math.floor(Math.random() * personagem.figurinhas.length)];
+      }
+   }
 
 
     // Monta prompt do personagem
@@ -167,7 +176,7 @@ export const chatComPersonagem = async (req, res) => {
     const reply = await tryOpenAI(contextMessages);
     chatHistories[chatKey].push({ role: "assistant", content: reply });
 
-    res.json({ reply });
+    res.json({ reply, figurinha });
 
   } catch (err) {
     console.error("Erro ao conversar com IA:", err);
