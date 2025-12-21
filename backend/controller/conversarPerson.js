@@ -111,14 +111,44 @@ export const chatComPersonagem = async (req, res) => {
     const nomeUsuario = userId ? (await getNomeUsuario(userId)) || "pessoa" : "visitante";
     let personagemIA = "";
 
-   // Escolhe aleatoriamente se vai enviar uma figurinha
-   let figurinha = null;
-    if (Array.isArray(personagem.figurinhas) && personagem.figurinhas.length > 0) {
-      const enviarFigurinha = Math.random() < 0.3; // 30% de chance
-      if (enviarFigurinha) {
-        figurinha = personagem.figurinhas[Math.floor(Math.random() * personagem.figurinhas.length)];
+    // Verifica se o usuário pediu uma figurinha
+    const mensagemLower = message.toLowerCase();
+    const pediuFigurinha = 
+      mensagemLower.includes("figurinha") || 
+      mensagemLower.includes("sticker") || 
+      mensagemLower.includes("manda figurinha") ||
+      mensagemLower.includes("envia figurinha") ||
+      mensagemLower.includes("quero figurinha") ||
+      mensagemLower.includes("manda sticker");
+
+    // Processa as figurinhas do banco (pode vir como array ou precisa ser parseado)
+    let figurinhasArray = [];
+    if (personagem.figurinhas) {
+      if (Array.isArray(personagem.figurinhas)) {
+        figurinhasArray = personagem.figurinhas.filter(f => f && f.trim() !== "");
+      } else if (typeof personagem.figurinhas === 'string') {
+        try {
+          const parsed = JSON.parse(personagem.figurinhas);
+          figurinhasArray = Array.isArray(parsed) ? parsed.filter(f => f && f.trim() !== "") : [];
+        } catch {
+          figurinhasArray = [];
+        }
       }
-   }
+    }
+
+    // Escolhe uma figurinha se o usuário pediu ou aleatoriamente
+    let figurinha = null;
+    if (figurinhasArray.length > 0) {
+      if (pediuFigurinha) {
+        // Se pediu, sempre envia uma figurinha
+        figurinha = figurinhasArray[Math.floor(Math.random() * figurinhasArray.length)];
+      } else {
+        // Caso contrário, 25% de chance de enviar aleatoriamente
+        if (Math.random() < 0.7) {
+          figurinha = figurinhasArray[Math.floor(Math.random() * figurinhasArray.length)];
+        }
+      }
+    }
 
 
     // Monta prompt do personagem
@@ -145,6 +175,7 @@ export const chatComPersonagem = async (req, res) => {
        - Mantenha a personalidade, estilo e histórico do ${personagem.nome} conforme definido.
        - Obedeça essas regras importantes ${personagem.regras}
        - Nunca puxe assunto
+       - Se o usuário pedir uma figurinha, você pode enviar uma figurinha junto com sua resposta.
        `
       } 
       if (personagem.tipo_personagem == "person") {
@@ -163,6 +194,7 @@ export const chatComPersonagem = async (req, res) => {
         - Regras que você deve obedecer: ${personagem.regras}
         - Fale igual o uma pessoa com a personalidade ${personagem.personalidade} falaria
         - a vezes você pode puxar assunto do que seu personagem na história dele já fez ou vai fazer.
+        - Se o usuário pedir uma figurinha, você pode enviar uma figurinha junto com sua resposta.
     `;
     }
 
