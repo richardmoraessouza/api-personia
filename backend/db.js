@@ -14,7 +14,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false } 
 });
 
-// Testa a conexão
+
 pool.connect((err, client, release) => {
   if (err) {
     console.error('Erro ao conectar ao banco:', err.stack);
