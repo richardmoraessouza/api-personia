@@ -2,7 +2,23 @@
 
 API RESTful para interação com personagens alimentados por Inteligência Artificial. Permite que usuários conversem com personagens fictícios ou personas personalizadas através de uma interface de chat inteligente.
 
-## 🔗 Links
+## � Sumário
+
+- [🔗 Links](#-links)
+- [✨ Funcionalidades Principais](#-funcionalidades-principais)
+- [🛠️ Tecnologias](#️-tecnologias)
+- [📦 Instalação](#-instalação)
+- [📚 Documentação da API](#-documentação-da-api)
+  - [🔐 Autenticação e Usuários](#-autenticação-e-usuários)
+  - [🎭 Personagens](#-personagens)
+  - [💬 Chat](#-chat)
+  - [👥 Sistema Social](#-sistema-social)
+- [📝 Códigos de Status HTTP](#-códigos-de-status-http)
+- [🔒 Segurança](#-segurança)
+- [🌍 Contato](#-contato)
+- [🤝 Contribuindo](#-contribuindo)
+
+## �🔗 Links
 
 - 🌐 **Aplicação Web**: [https://personia.netlify.app/](https://personia.netlify.app/)
 - 📦 **Repositório GitHub**: [https://github.com/richardmoraessouza/api-personia](https://github.com/richardmoraessouza/api-personia)
@@ -90,6 +106,10 @@ Authorization: Bearer <seu_token_jwt>
 ### `POST /cadastra`
 Cadastra um novo usuário.
 
+**Autenticação:** Não requer  
+**Campos Obrigatórios:** `nome`, `gmail`  
+**Campos Opcionais:** `foto_perfil`, `descricao`
+
 **Request Body:**
 ```json
 {
@@ -110,8 +130,15 @@ Cadastra um novo usuário.
 }
 ```
 
+**Erros:**
+- `400`: Campos obrigatórios ausentes ou inválidos
+- `500`: Erro interno do servidor
+
 ### `POST /entrar`
 Realiza login e retorna token JWT.
+
+**Autenticação:** Não requer  
+**Campos Obrigatórios:** `gmail`
 
 **Request Body:**
 ```json
@@ -132,8 +159,16 @@ Realiza login e retorna token JWT.
 }
 ```
 
+**Erros:**
+- `400`: Gmail não fornecido
+- `404`: Usuário não encontrado
+- `500`: Erro interno do servidor
+
 ### `GET /usuario/:id`
 Busca dados do próprio usuário (requer autenticação).
+
+**Autenticação:** Requer (JWT)  
+**Parâmetros:** `id` (ID do usuário)
 
 **Headers:**
 ```
@@ -150,8 +185,16 @@ Authorization: Bearer <token>
 }
 ```
 
+**Erros:**
+- `401`: Token inválido ou ausente
+- `404`: Usuário não encontrado
+- `500`: Erro interno do servidor
+
 ### `GET /buscarUsuario/:gmail`
 Busca usuário pelo Gmail.
+
+**Autenticação:** Não requer  
+**Parâmetros:** `gmail` (endereço de email do usuário)
 
 **Response (200):**
 ```json
@@ -162,8 +205,16 @@ Busca usuário pelo Gmail.
 }
 ```
 
+**Erros:**
+- `404`: Usuário não encontrado
+- `500`: Erro interno do servidor
+
 ### `PUT /editar/:id`
 Edita perfil do usuário (requer autenticação).
+
+**Autenticação:** Requer (JWT)  
+**Parâmetros:** `id` (ID do usuário)  
+**Campos Opcionais:** `nome`, `foto_perfil`, `descricao`
 
 **Headers:**
 ```
@@ -194,8 +245,16 @@ Authorization: Bearer <token>
 }
 ```
 
+**Erros:**
+- `401`: Token inválido ou ausente
+- `404`: Usuário não encontrado
+- `500`: Erro interno do servidor
+
 ### `GET /perfil/:id`
 Busca perfil de outro usuário.
+
+**Autenticação:** Não requer  
+**Parâmetros:** `id` (ID do usuário)
 
 **Response (200):**
 ```json
@@ -206,12 +265,18 @@ Busca perfil de outro usuário.
 }
 ```
 
+**Erros:**
+- `404`: Usuário não encontrado
+- `500`: Erro interno do servidor
+
 ---
 
 ## 🎭 Personagens
 
 ### `GET /personagens`
 Lista todos os personagens disponíveis.
+
+**Autenticação:** Não requer  
 
 **Response (200):**
 ```json
@@ -229,8 +294,14 @@ Lista todos os personagens disponíveis.
 ]
 ```
 
+**Erros:**
+- `500`: Erro interno do servidor
+
 ### `GET /personagens/:id`
 Busca detalhes de um personagem específico.
+
+**Autenticação:** Não requer  
+**Parâmetros:** `id` (ID do personagem)
 
 **Response (200):**
 ```json
@@ -243,8 +314,15 @@ Busca detalhes de um personagem específico.
 }
 ```
 
+**Erros:**
+- `404`: Personagem não encontrado
+- `500`: Erro interno do servidor
+
 ### `GET /dadosPersonagem/:id`
 Busca todos os dados completos de um personagem.
+
+**Autenticação:** Não requer  
+**Parâmetros:** `id` (ID do personagem)
 
 **Response (200):**
 ```json
@@ -268,8 +346,15 @@ Busca todos os dados completos de um personagem.
 }
 ```
 
+**Erros:**
+- `404`: Personagem não encontrado
+- `500`: Erro interno do servidor
+
 ### `GET /buscarPerson/:usuarioId`
 Busca todos os personagens criados por um usuário específico.
+
+**Autenticação:** Não requer  
+**Parâmetros:** `usuarioId` (ID do usuário)
 
 **Response (200):**
 ```json
@@ -291,8 +376,16 @@ Busca todos os personagens criados por um usuário específico.
 ]
 ```
 
+**Erros:**
+- `404`: Nenhum personagem encontrado
+- `500`: Erro interno do servidor
+
 ### `POST /criacao`
 Cria um novo personagem (requer autenticação).
+
+**Autenticação:** Requer (JWT)  
+**Campos Obrigatórios:** `nome`, `genero`, `personalidade`, `comportamento`, `estilo`, `historia`, `fotoia`, `regras`, `descricao`, `tipo_personagem`  
+**Campos Opcionais:** `feitos`, `obra`, `figurinhas` (array limitado a 6 itens)
 
 **Headers:**
 ```
@@ -313,7 +406,8 @@ Authorization: Bearer <token>
   "descricao": "Descrição do personagem",
   "feitos": "Feitos do personagem",
   "obra": "Nome da obra (opcional para personagens fictícios)",
-  "tipo_personagem": "person"
+  "tipo_personagem": "person",
+  "figurinhas": ["url1", "url2"]
 }
 ```
 
@@ -327,8 +421,17 @@ Authorization: Bearer <token>
 }
 ```
 
+**Erros:**
+- `400`: Campos obrigatórios ausentes
+- `401`: Token inválido
+- `500`: Erro interno do servidor
+
 ### `PUT /editarPerson/:id`
 Edita um personagem existente.
+
+**Autenticação:** Não requer  
+**Parâmetros:** `id` (ID do personagem)  
+**Campos Opcionais:** Todos os campos do personagem
 
 **Request Body:**
 ```json
@@ -360,8 +463,15 @@ Edita um personagem existente.
 }
 ```
 
+**Erros:**
+- `404`: Personagem não encontrado
+- `500`: Erro interno do servidor
+
 ### `GET /nomeCriador/:id`
 Busca o nome do criador de um personagem.
+
+**Autenticação:** Não requer  
+**Parâmetros:** `id` (ID do personagem)
 
 **Response (200):**
 ```json
@@ -370,12 +480,21 @@ Busca o nome do criador de um personagem.
 }
 ```
 
+**Erros:**
+- `404`: Personagem ou criador não encontrado
+- `500`: Erro interno do servidor
+
 ---
 
 ## 💬 Chat
 
 ### `POST /chat/:personagemId`
 Envia uma mensagem para um personagem e recebe resposta da IA.
+
+**Autenticação:** Não requer  
+**Parâmetros:** `personagemId` (ID do personagem)  
+**Campos Obrigatórios:** `message`  
+**Campos Opcionais:** `userId`, `anonId`
 
 **Request Body:**
 ```json
@@ -385,11 +504,6 @@ Envia uma mensagem para um personagem e recebe resposta da IA.
   "anonId": "abc-123"
 }
 ```
-
-**Parâmetros:**
-- `message` (obrigatório): Mensagem a ser enviada
-- `userId` (opcional): ID do usuário logado
-- `anonId` (opcional): ID anônimo para usuários não logados
 
 **Response (200):**
 ```json
@@ -405,6 +519,7 @@ Envia uma mensagem para um personagem e recebe resposta da IA.
 **Códigos de Erro:**
 - `400`: Mensagem vazia ou ID de personagem inválido
 - `404`: Personagem não encontrado
+- `429`: Limite de mensagens anônimas excedido
 - `500`: Erro interno do servidor ou chaves de API indisponíveis
 
 ---
@@ -413,6 +528,9 @@ Envia uma mensagem para um personagem e recebe resposta da IA.
 
 ### `POST /seguir`
 Segue um usuário.
+
+**Autenticação:** Não requer  
+**Campos Obrigatórios:** `seguidor_id`, `seguido_id`
 
 **Request Body:**
 ```json
@@ -430,8 +548,16 @@ Segue um usuário.
 }
 ```
 
+**Erros:**
+- `400`: IDs inválidos
+- `409`: Já seguindo este usuário
+- `500`: Erro interno do servidor
+
 ### `POST /deixar-de-seguir`
 Deixa de seguir um usuário.
+
+**Autenticação:** Não requer  
+**Campos Obrigatórios:** `seguidor_id`, `seguido_id`
 
 **Request Body:**
 ```json
@@ -449,8 +575,16 @@ Deixa de seguir um usuário.
 }
 ```
 
+**Erros:**
+- `400`: IDs inválidos
+- `404`: Relacionamento não encontrado
+- `500`: Erro interno do servidor
+
 ### `GET /seguidores/:id`
 Lista os seguidores de um usuário.
+
+**Autenticação:** Não requer  
+**Parâmetros:** `id` (ID do usuário)
 
 **Response (200):**
 ```json
@@ -471,8 +605,14 @@ Lista os seguidores de um usuário.
 }
 ```
 
+**Erros:**
+- `500`: Erro interno do servidor
+
 ### `GET /seguindo/:id`
 Lista os usuários que um usuário está seguindo.
+
+**Autenticação:** Não requer  
+**Parâmetros:** `id` (ID do usuário)
 
 **Response (200):**
 ```json
@@ -487,6 +627,9 @@ Lista os usuários que um usuário está seguindo.
   ]
 }
 ```
+
+**Erros:**
+- `500`: Erro interno do servidor
 
 ---
 
