@@ -1,167 +1,141 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
+import 'dotenv/config';
 import db from "../db.js";
+import buildPersonPrompt from "./buildPersonPrompt.js";
 
-// ======= Configuração das chaves Gemini =======
-const geminiKeys = [
+const conversationMemory = new Map();
+
+// cache de personagens
+const personagemCache = {};
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+// ======= Configuração das chaves =======
+let geminiKeys = [
   process.env.GEMINI_API_KEY,
   process.env.GEMINI_API_KEY2,
   process.env.GEMINI_API_KEY3,
   process.env.GEMINI_API_KEY4,
   process.env.GEMINI_API_KEY5,
-].filter(k => k); // Remove nulos
+].filter(Boolean);
 
 let keyIndex = 0;
 let keyStatus = geminiKeys.map(() => true);
 
+// função para obter a próxima chave ativa caso a atual falhe ou estoure limite
 const getNextActiveKey = () => {
   const totalKeys = geminiKeys.length;
   for (let i = 0; i < totalKeys; i++) {
     const idx = (keyIndex + i) % totalKeys;
-    if (keyStatus[idx]) {
+    const key = geminiKeys[idx];
+    if (key && keyStatus[idx]) {
       keyIndex = (idx + 1) % totalKeys;
-      return { key: geminiKeys[idx], idx };
+      return { key, idx };
     }
   }
   return null;
 };
-console.log(process.env.GEMINI_API_KEY);
 
-// ======= Função que fala com o Google =======
-const tryGemini = async (systemInstruction, fullHistory) => {
-  let attempt = 0;
-
-  while (attempt < geminiKeys.length) {
+async function tryGeminiRequest(fn) {
+  if (!geminiKeys.length) throw new Error('Nenhuma Gemini API key configurada');
+  let attempts = 0;
+  while (attempts < geminiKeys.length) {
     const active = getNextActiveKey();
     if (!active) break;
-
     const { key, idx } = active;
-    
+    const client = new GoogleGenAI({ apiKey: key });
     try {
-      const genAI = new GoogleGenerativeAI(key.trim());
-      // Usando o modelo direto sem o prefixo v1beta que estava dando erro
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-      // Estrutura CORRETA: Injetamos as regras no início do conteúdo
-      const finalContents = [
-        { role: "user", parts: [{ text: `INSTRUÇÕES: ${systemInstruction}` }] },
-        { role: "model", parts: [{ text: "Entendido. Vou agir conforme o personagem e regras solicitadas." }] },
-        ...fullHistory
-      ];
-
-      const result = await model.generateContent({
-        contents: finalContents,
-        generationConfig: {
-          temperature: 0.8,
-          maxOutputTokens: 600,
-        },
-      });
-
-      const response = await result.response;
-      const text = response.text();
-      
-      console.log(`✅ Chave ${idx + 1} respondeu com sucesso!`);
-      return text;
-
+      return await fn(client);
     } catch (err) {
-      console.error(`❌ Erro na Chave ${idx + 1}:`, err.message);
-      
-      // Se a chave for inválida ou expirada, desativamos
-      if (err.message.includes("400") || err.message.includes("key expired") || err.message.includes("not valid")) {
-        keyStatus[idx] = false;
-      }
-      
-      attempt++;
+      console.warn(`Gemini key ${idx + 1} failed — marking inactive.`, err?.message || err);
+      keyStatus[idx] = false;
+      attempts++;
     }
   }
-  throw new Error("Nenhuma chave Gemini disponível.");
-};
+  throw new Error('Nenhuma chave Gemini disponível no momento.');
+}
 
-// Resetar chaves a cada 5 minutos
+// Reseta chaves toda vez a cada 5 minutos
 setInterval(() => {
   keyStatus = geminiKeys.map(() => true);
+  console.log('Gemini key rotation: todas as chaves reativadas.');
 }, 1000 * 60 * 5);
 
-let chatHistories = {};
-let anonMessageCount = {};
-let personagemCache = {};
+function addToMemory(personagemId, role, text) {
+  const key = (personagemId || 'global').toString();
+  const mem = conversationMemory.get(key) || [];
+  mem.push({ role, text, ts: Date.now() });
+  if (mem.length > 200) mem.splice(0, mem.length - 200);
+  conversationMemory.set(key, mem);
+}
 
-// ======= Função Principal da Rota =======
+function getLastMessages(personagemId, limit = 10) {
+  const key = (personagemId || 'global').toString();
+  const mem = conversationMemory.get(key) || [];
+  return mem.slice(-limit);
+}
+
 export const chatComPersonagem = async (req, res) => {
+  const { personagemId } = req.params;
+  const { message } = req.body;
+
   try {
-    const { message, userId: rawUserId, anonId } = req.body;
-    const { personagemId: rawPersonagemId } = req.params;
-
-    const personagemId = parseInt(rawPersonagemId, 10);
-    const userId = rawUserId ? parseInt(rawUserId, 10) : null;
-
-    if (!message?.trim()) return res.status(400).json({ error: "Mensagem vazia" });
-
-    // Controle de anônimos
-    if (!userId) {
-      const id = anonId || req.ip;
-      if (!anonMessageCount[id]) anonMessageCount[id] = 0;
-      if (anonMessageCount[id] >= 20) return res.json({ reply: "Limite grátis acabou." });
-      anonMessageCount[id]++;
+    if (!message) {
+      return res.status(400).json({ reply: "Mensagem vazia 😅" });
     }
 
-    const chatKey = userId ? `${userId}-${personagemId}` : `anon-${anonId || req.ip}-${personagemId}`;
-    if (!chatHistories[chatKey]) chatHistories[chatKey] = [];
-
-    // Buscar personagem no banco/cache
+    // Buscar personagem no banco ou cache
     const getPersonagem = async (id) => {
       if (personagemCache[id]) return personagemCache[id];
-      const result = await db.query(`SELECT * FROM personia2.personagens WHERE id = $1`, [id]);
+      const result = await db.query(
+        `SELECT nome, obra, genero, personalidadE as personalidade, personalidade as personalidade_old, personalidade as personalidade_dup, personalidade as personalidade_dup2, personalidade, comportamento, estilo, historia, regras, tipo_personagem
+         FROM personia2.personagens WHERE id = $1`,
+        [id]
+      );
+
       if (result.rows.length === 0) return null;
       personagemCache[id] = result.rows[0];
-      return result.rows[0];
+      return personagemCache[id];
     };
 
     const personagem = await getPersonagem(personagemId);
-    if (!personagem) return res.status(404).json({ error: "Personagem não encontrado" });
+    if (!personagem) return res.status(404).json({ reply: "Personagem não encontrado" });
 
-    // Prompt de Sistema
-    let systemPrompt = "";
-    if (personagem.tipo_personagem === "ficcional") {
-      systemPrompt = `Seu nome é ${personagem.nome} da obra ${personagem.obra}. Fale igual ao personagem. História: ${personagem.historia}. Personalidade: ${personagem.personalidade}. Regras: ${personagem.regras}. Responda rápido, como no WhatsApp.`;
-    } else {
-      systemPrompt = `Nome: ${personagem.nome}. Estilo: ${personagem.estilo}. Personalidade: ${personagem.personalidade}. Regras: ${personagem.regras}. Fale como no WhatsApp.`;
+    // Monta prompt do personagem usando o builder compartilhado
+    const systemPrompt = buildPersonPrompt(personagem);
+
+    const contents = [];
+    contents.push({ role: 'model', parts: [{ text: systemPrompt || `Você é o personagem ${personagemId}. Responda como um personagem real, de forma natural.` }] });
+
+    const history = getLastMessages(personagemId, 10);
+    for (const m of history) {
+      const role = m.role === 'assistant' ? 'model' : 'user';
+      contents.push({ role, parts: [{ text: m.text }] });
     }
 
-    // 1. Formata o histórico existente corretamente para o Google
-    const formattedHistory = chatHistories[chatKey].slice(-15).map(msg => ({
-      role: msg.role === "model" ? "model" : "user",
-      parts: [{ text: msg.parts?.[0]?.text || msg.content || "" }]
-    }));
+    contents.push({ role: 'user', parts: [{ text: `Usuário: ${message}` }] });
 
-    // 2. Adiciona a mensagem atual do usuário ao final do histórico que vai para a API
-    const fullHistoryForAPI = [
-      ...formattedHistory,
-      { role: "user", parts: [{ text: message }] }
-    ];
+    const response = await tryGeminiRequest(async (client) => {
+      return await client.models.generateContent({ model: 'gemini-2.5-flash', contents });
+    });
 
-    // 3. Chama a função de envio
-    let reply = await tryGemini(systemPrompt, fullHistoryForAPI);
+    const respostaIA =
+      response.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "Não consegui responder agora 😢";
 
-    // Limpeza da resposta
-    reply = reply.replace(/https?:\/\/[^\s\)]+/g, '').trim();
-
-    // 4. Salva no histórico local (para a próxima mensagem)
-    chatHistories[chatKey].push({ role: "user", parts: [{ text: message }] });
-    chatHistories[chatKey].push({ role: "model", parts: [{ text: reply }] });
-
-    // Lógica de Figurinha
-    let figurinha = null;
     try {
-      const figurinhasArray = Array.isArray(personagem.figurinhas) ? personagem.figurinhas : JSON.parse(personagem.figurinhas || "[]");
-      if (figurinhasArray.length > 0 && (message.toLowerCase().includes("figurinha") || Math.random() < 0.2)) {
-        figurinha = figurinhasArray[Math.floor(Math.random() * figurinhasArray.length)];
-      }
-    } catch(e) {}
+      addToMemory(personagemId, 'user', message);
+      addToMemory(personagemId, 'assistant', respostaIA);
+    } catch (e) {
+      console.warn('Não foi possível salvar memória da conversa:', e?.message || e);
+    }
 
-    res.json({ reply, figurinha });
+    return res.status(200).json({ reply: respostaIA, figurinha: null });
 
   } catch (err) {
-    console.error("ERRO FINAL:", err.message);
-    res.status(500).json({ error: "Ocorreu um erro ao processar sua mensagem." });
+    console.error("Erro em chatComPersonagem:", err);
+    return res.status(500).json({
+      reply: "Erro no chat com personagem 😢",
+    });
   }
 };
