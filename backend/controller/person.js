@@ -2,7 +2,7 @@ import db from '../db.js';
 
 // rota de criar personagens
 export const adicionarPerson = async (req, res) => {
-    const { nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, descricao, feitos, obra, tipo_personagem, figurinhas } = req.body;
+    const { nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, descricao, feitos, obra, tipo_personagem, figurinhas, bio } = req.body;
     const usuarioId = req.user?.id;
 
     if (!usuarioId) return res.status(401).json({ error: 'Usuário não autenticado' });
@@ -15,10 +15,10 @@ export const adicionarPerson = async (req, res) => {
 
         const result = await db.query(
             `INSERT INTO personia2.personagens 
-             (nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuario_id, descricao, feitos, obra, tipo_personagem, figurinhas)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+             (nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuario_id, descricao, feitos, obra, tipo_personagem, figurinhas, bio)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
              RETURNING *`,
-            [nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuarioId, descricao, feitos, obra, tipo_personagem, figurinhasFiltradas]
+            [nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuarioId, descricao, feitos, obra, tipo_personagem, figurinhasFiltradas, bio]
         );
 
         res.status(201).json(result.rows[0]);
@@ -31,7 +31,7 @@ export const adicionarPerson = async (req, res) => {
 // rota de mostrar os personagens
 export const personagens = async (req, res) => {
     try {
-        const result = await db.query('SELECT id, nome, fotoia, descricao, tipo_personagem, usuario_id FROM personia2.personagens');
+        const result = await db.query('SELECT id, nome, fotoia, tipo_personagem, usuario_id, bio FROM personia2.personagens');
         res.status(200).json(result.rows); 
     } catch (err) {
         console.error('Erro ao buscar personagens completo:', err);

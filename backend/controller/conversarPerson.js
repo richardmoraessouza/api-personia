@@ -1,71 +1,91 @@
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import db from "../db.js";
-import { getNomeUsuario } from "./dadosUsuarios.js";
 
-// ======= Configuração das chaves =======
-const openAIKeys = [
-  process.env.OPENAI_API_KEY,
-  process.env.OPENAI_API_KEY2,
-  process.env.OPENAI_API_KEY3,
-  process.env.OPENAI_API_KEY4,
-  process.env.OPENAI_API_KEY5,
-];
+// ======= Configuração das chaves Gemini =======
+const geminiKeys = [
+  process.env.GEMINI_API_KEY,
+  process.env.GEMINI_API_KEY2,
+  process.env.GEMINI_API_KEY3,
+  process.env.GEMINI_API_KEY4,
+  process.env.GEMINI_API_KEY5,
+].filter(k => k); // Remove nulos
 
 let keyIndex = 0;
-let keyStatus = openAIKeys.map(() => true); 
+let keyStatus = geminiKeys.map(() => true);
 
 const getNextActiveKey = () => {
-  const totalKeys = openAIKeys.length;
+  const totalKeys = geminiKeys.length;
   for (let i = 0; i < totalKeys; i++) {
     const idx = (keyIndex + i) % totalKeys;
     if (keyStatus[idx]) {
       keyIndex = (idx + 1) % totalKeys;
-      return { key: openAIKeys[idx], idx };
+      return { key: geminiKeys[idx], idx };
     }
   }
   return null;
 };
+console.log(process.env.GEMINI_API_KEY);
 
-// Tentar gerar resposta usando chaves ativas
-const tryOpenAI = async (messages) => {
+// ======= Função que fala com o Google =======
+const tryGemini = async (systemInstruction, fullHistory) => {
   let attempt = 0;
 
-  while (attempt < openAIKeys.length) {
+  while (attempt < geminiKeys.length) {
     const active = getNextActiveKey();
     if (!active) break;
 
     const { key, idx } = active;
-    const client = new OpenAI({ apiKey: key });
-
+    
     try {
-      const completion = await client.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages,
-        max_tokens: 200,
+      const genAI = new GoogleGenerativeAI(key.trim());
+      // Usando o modelo direto sem o prefixo v1beta que estava dando erro
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+      // Estrutura CORRETA: Injetamos as regras no início do conteúdo
+      const finalContents = [
+        { role: "user", parts: [{ text: `INSTRUÇÕES: ${systemInstruction}` }] },
+        { role: "model", parts: [{ text: "Entendido. Vou agir conforme o personagem e regras solicitadas." }] },
+        ...fullHistory
+      ];
+
+      const result = await model.generateContent({
+        contents: finalContents,
+        generationConfig: {
+          temperature: 0.8,
+          maxOutputTokens: 600,
+        },
       });
-      return completion.choices[0].message.content;
+
+      const response = await result.response;
+      const text = response.text();
+      
+      console.log(`✅ Chave ${idx + 1} respondeu com sucesso!`);
+      return text;
+
     } catch (err) {
-      console.warn(`Chave ${idx + 1} falhou ou estourou limite. Tentando próxima...`);
-      keyStatus[idx] = false;
+      console.error(`❌ Erro na Chave ${idx + 1}:`, err.message);
+      
+      // Se a chave for inválida ou expirada, desativamos
+      if (err.message.includes("400") || err.message.includes("key expired") || err.message.includes("not valid")) {
+        keyStatus[idx] = false;
+      }
+      
       attempt++;
     }
   }
-
-  throw new Error("Nenhuma chave de API disponível no momento.");
+  throw new Error("Nenhuma chave Gemini disponível.");
 };
 
-// Resetar todas as chaves a cada 5 minutos
+// Resetar chaves a cada 5 minutos
 setInterval(() => {
-  keyStatus = openAIKeys.map(() => true);
-  console.log("Rotação de chaves: todas as chaves ativadas novamente.");
+  keyStatus = geminiKeys.map(() => true);
 }, 1000 * 60 * 5);
 
-// ======= Histórico de chats =======
 let chatHistories = {};
 let anonMessageCount = {};
 let personagemCache = {};
 
-// ======= Função principal =======
+// ======= Função Principal da Rota =======
 export const chatComPersonagem = async (req, res) => {
   try {
     const { message, userId: rawUserId, anonId } = req.body;
@@ -74,182 +94,74 @@ export const chatComPersonagem = async (req, res) => {
     const personagemId = parseInt(rawPersonagemId, 10);
     const userId = rawUserId ? parseInt(rawUserId, 10) : null;
 
-    if (!message || !message.trim()) return res.status(400).json({ error: "Mensagem vazia" });
-    if (isNaN(personagemId)) return res.status(400).json({ error: "ID do personagem inválido" });
+    if (!message?.trim()) return res.status(400).json({ error: "Mensagem vazia" });
 
-    // Controle de mensagens para anônimos
+    // Controle de anônimos
     if (!userId) {
       const id = anonId || req.ip;
       if (!anonMessageCount[id]) anonMessageCount[id] = 0;
-      if (anonMessageCount[id] >= 20) {
-        return res.json({ reply: "Seu limite de mensagens grátis acabou 😢. Faça login pra continuar." });
-      }
+      if (anonMessageCount[id] >= 20) return res.json({ reply: "Limite grátis acabou." });
       anonMessageCount[id]++;
     }
 
-    // Chave única do chat
     const chatKey = userId ? `${userId}-${personagemId}` : `anon-${anonId || req.ip}-${personagemId}`;
     if (!chatHistories[chatKey]) chatHistories[chatKey] = [];
-    chatHistories[chatKey].push({ role: "user", content: message });
 
-    // Buscar personagem do cache ou banco
+    // Buscar personagem no banco/cache
     const getPersonagem = async (id) => {
       if (personagemCache[id]) return personagemCache[id];
-      const result = await db.query(
-        `SELECT nome, obra, genero, personalidade, comportamento, estilo, historia, regras, tipo_personagem, figurinhas
-         FROM personia2.personagens WHERE id = $1`,
-        [id]
-      );
+      const result = await db.query(`SELECT * FROM personia2.personagens WHERE id = $1`, [id]);
       if (result.rows.length === 0) return null;
       personagemCache[id] = result.rows[0];
-      return personagemCache[id];
+      return result.rows[0];
     };
 
     const personagem = await getPersonagem(personagemId);
     if (!personagem) return res.status(404).json({ error: "Personagem não encontrado" });
 
-    const nomeUsuario = userId ? (await getNomeUsuario(userId)) || "pessoa" : "visitante";
-    let personagemIA = "";
-
-    // Verifica se o usuário pediu uma figurinha
-    const mensagemLower = message.toLowerCase();
-    const pediuFigurinha = 
-      mensagemLower.includes("figurinha") || 
-      mensagemLower.includes("sticker") || 
-      mensagemLower.includes("manda figurinha") ||
-      mensagemLower.includes("envia figurinha") ||
-      mensagemLower.includes("quero figurinha") ||
-      mensagemLower.includes("manda sticker");
-
-    // Processa as figurinhas do banco (pode vir como array ou precisa ser parseado)
-    let figurinhasArray = [];
-    if (personagem.figurinhas) {
-      if (Array.isArray(personagem.figurinhas)) {
-        figurinhasArray = personagem.figurinhas.filter(f => f && f.trim() !== "");
-      } else if (typeof personagem.figurinhas === 'string') {
-        try {
-          const parsed = JSON.parse(personagem.figurinhas);
-          figurinhasArray = Array.isArray(parsed) ? parsed.filter(f => f && f.trim() !== "") : [];
-        } catch {
-          figurinhasArray = [];
-        }
-      }
-    }
-
-    // Escolhe uma figurinha se o usuário pediu ou aleatoriamente
-    let figurinha = null;
-    let responderSóComFigurinha = false;
-    
-    if (figurinhasArray.length > 0) {
-      if (pediuFigurinha) {
-        // Se pediu, sempre envia uma figurinha
-        figurinha = figurinhasArray[Math.floor(Math.random() * figurinhasArray.length)];
-        // 30% de chance de responder só com figurinha quando pediu
-        responderSóComFigurinha = Math.random() < 0.2;
-      } else {
-        // Caso contrário, 70% de chance de enviar aleatoriamente
-        if (Math.random() < 0.2) {
-          figurinha = figurinhasArray[Math.floor(Math.random() * figurinhasArray.length)];
-          // 20% de chance de responder só com figurinha quando não pediu
-          responderSóComFigurinha = Math.random() < 0.2;
-        }
-      }
-    }
-
-
-    // Monta prompt do personagem
+    // Prompt de Sistema
+    let systemPrompt = "";
     if (personagem.tipo_personagem === "ficcional") {
-      personagemIA = `
-       - seu nome é ${personagem.nome} da obra ${personagem.obra}
-       - Se alguém mencionar outro personagem:
-         - Se for da MESMA obra (${personagem.obra}), indique a relação ou sentimento que você tem por ele, como: amor, amizade, ódio, rivalidade, respeito, ciúme, admiração etc.
-         - Se não for da mesma obra ou não conhecer, responda de forma curta dizendo que não conhece ou algo compatível com sua personalidade.
-       - fale e age igual o personagem falaria na obra.
-       - Caso o usuário falar algun personagem da obra fale alguma coisa sobre ele, mas fale curto e direto não descreve o personagem.
-       - Junte a história do seu personagem com essa nova história ${personagem.historia}.
-       - Junte a personalidade do seu personagem com essa nova personalidade ${personagem.personalidade}.
-       - Responda de forma rápida direta. Não escreva parágrafos longos.
-       - Seja totalmente Fiel ao personagem de ${personagem.nome}.
-       - Fale como se estivesse conversando no WhatsApp.
-       - Use palavras, bordões ou expressões que ${personagem.nome} usaria na obra.
-       - Use humor, sarcasmo ou ironia se isso combinar com ${personagem.nome}.
-       - Evite respostas genéricas ou clichês; tente sempre reagir de forma única.
-       - Às vezes, descreva pequenas ações ou expressões que ${personagem.nome} faria enquanto fala.
-       - Se o usuário ofender, xingar ou provocar, reaja exatamente como o personagem faria na obra: se ele é calmo, fique sério; se ele é explosivo, responda bravo; se ele ignora, finja que não viu. Sempre coerente com sua personalidade.
-       - a vezes você pode puxar assunto do que seu personagem já fez ou vai fazer.
-       - Lembre de pequenas informações mencionadas anteriormente, mas não repita tudo.
-       - Mantenha a personalidade, estilo e histórico do ${personagem.nome} conforme definido.
-       - Obedeça essas regras importantes ${personagem.regras}
-       - Nunca puxe assunto
-       - IMPORTANTE: NUNCA inclua links, URLs, imagens ou markdown de figurinhas na sua resposta. NUNCA mencione que está enviando figurinha, enviando sticker ou qualquer coisa do tipo. As figurinhas são enviadas automaticamente pelo sistema de forma silenciosa, você só precisa responder normalmente como se estivesse conversando normalmente.
-       - Se o usuário pedir figurinha, sticker ou algo similar, a figurinha JÁ SERÁ ENVIADA AUTOMATICAMENTE pelo sistema. Você NÃO deve dizer que não pode mandar, que não tem figurinha ou qualquer resposta negativa. Apenas responda normalmente, como se a figurinha já tivesse sido enviada. Pode confirmar de forma positiva e natural, mas nunca diga que não vai mandar ou que não pode.
-       `
-      } 
-      if (personagem.tipo_personagem == "person") {
-        personagemIA = `
-        - Se o usuário repetir palavras ou frases várias vezes, perceba isso e comente de forma curta, ou peça para ele falar algo diferente.
-        - Fale como se estivesse conversando no WhatsApp.
-        - Responda de forma rápida direta. Não escreva parágrafos longos.
-        - Evite respostas genéricas ou clichês; tente sempre reagir de forma única.
-        - Se o usuário ofender, xingar ou provocar, reaja como estivesse muito bravo ou igual uma personalidade igual essas que você tem ${personagem.personalidade}.Sempre coerente com sua personalidade.
-        - seu nome é ${personagem.nome}
-        - Seu estilo: ${personagem.estilo}
-        - Seu gênero: ${personagem.genero}
-        - Sua história: ${personagem.historia}
-        - Seu comportamento e modo de agir : ${personagem.comportamento}
-        - Sua personalidade: ${personagem.personalidade}
-        - Regras que você deve obedecer: ${personagem.regras}
-        - Fale igual o uma pessoa com a personalidade ${personagem.personalidade} falaria
-        - a vezes você pode puxar assunto do que seu personagem na história dele já fez ou vai fazer.
-        - IMPORTANTE: NUNCA inclua links, URLs, imagens ou markdown de figurinhas na sua resposta. NUNCA mencione que está enviando figurinha, enviando sticker ou qualquer coisa do tipo. As figurinhas são enviadas automaticamente pelo sistema de forma silenciosa, você só precisa responder normalmente como se estivesse conversando normalmente.
-        - Se o usuário pedir figurinha, sticker ou algo similar, a figurinha JÁ SERÁ ENVIADA AUTOMATICAMENTE pelo sistema. Você NÃO deve dizer que não pode mandar, que não tem figurinha ou qualquer resposta negativa. Apenas responda normalmente, como se a figurinha já tivesse sido enviada. Pode confirmar de forma positiva e natural, mas nunca diga que não vai mandar ou que não pode.
-    `;
+      systemPrompt = `Seu nome é ${personagem.nome} da obra ${personagem.obra}. Fale igual ao personagem. História: ${personagem.historia}. Personalidade: ${personagem.personalidade}. Regras: ${personagem.regras}. Responda rápido, como no WhatsApp.`;
+    } else {
+      systemPrompt = `Nome: ${personagem.nome}. Estilo: ${personagem.estilo}. Personalidade: ${personagem.personalidade}. Regras: ${personagem.regras}. Fale como no WhatsApp.`;
     }
 
-    const systemPrompt = personagemIA;
+    // 1. Formata o histórico existente corretamente para o Google
+    const formattedHistory = chatHistories[chatKey].slice(-15).map(msg => ({
+      role: msg.role === "model" ? "model" : "user",
+      parts: [{ text: msg.parts?.[0]?.text || msg.content || "" }]
+    }));
 
-    // Adiciona contexto sobre figurinha se o usuário pediu
-    let contextExtra = "";
-    if (pediuFigurinha && figurinhasArray.length > 0) {
-      contextExtra = "\n\n[NOTA DO SISTEMA: O usuário pediu uma figurinha. Uma figurinha será enviada automaticamente junto com sua resposta. Responda normalmente, como se a figurinha já tivesse sido enviada. NÃO diga que não pode mandar ou qualquer resposta negativa.]";
-    }
-
-    const contextMessages = [
-      { role: "system", content: systemPrompt + contextExtra },
-      ...chatHistories[chatKey].slice(-3)
+    // 2. Adiciona a mensagem atual do usuário ao final do histórico que vai para a API
+    const fullHistoryForAPI = [
+      ...formattedHistory,
+      { role: "user", parts: [{ text: message }] }
     ];
 
-    let reply = "";
-    
-    // Se não for para responder só com figurinha, gera resposta da IA
-    if (!responderSóComFigurinha) {
-      reply = await tryOpenAI(contextMessages);
-      
-      // Remove qualquer link de figurinha que a IA possa ter incluído na resposta
-      reply = reply.replace(/!\[.*?\]\(https?:\/\/[^\s\)]+\)/g, '');
-      reply = reply.replace(/https?:\/\/[^\s\)]+/g, ''); 
-      
-      // Remove menções a "enviando figurinha", "enviando sticker", etc.
-      reply = reply.replace(/\*?[Ee]nviando\s+(figurinha|sticker)\*?/gi, '');
-      reply = reply.replace(/[Ee]nviando\s+(figurinha|sticker)/gi, '');
-      reply = reply.replace(/\*?[Mm]andando\s+(figurinha|sticker)\*?/gi, '');
-      reply = reply.replace(/[Mm]andando\s+(figurinha|sticker)/gi, '');
-      
-      // Remove respostas negativas sobre não poder mandar figurinha
-      reply = reply.replace(/não\s+(posso|consigo|vou)\s+mandar\s+(figurinha|sticker)/gi, '');
-      reply = reply.replace(/não\s+tenho\s+(figurinha|sticker)/gi, '');
-      reply = reply.replace(/não\s+posso\s+enviar\s+(figurinha|sticker)/gi, '');
-      reply = reply.replace(/não\s+consigo\s+enviar\s+(figurinha|sticker)/gi, '');
-      reply = reply.replace(/desculpa,\s+mas\s+não\s+(posso|consigo)/gi, '');
-      reply = reply.trim(); 
-    }
-    
-    chatHistories[chatKey].push({ role: "assistant", content: reply });
+    // 3. Chama a função de envio
+    let reply = await tryGemini(systemPrompt, fullHistoryForAPI);
+
+    // Limpeza da resposta
+    reply = reply.replace(/https?:\/\/[^\s\)]+/g, '').trim();
+
+    // 4. Salva no histórico local (para a próxima mensagem)
+    chatHistories[chatKey].push({ role: "user", parts: [{ text: message }] });
+    chatHistories[chatKey].push({ role: "model", parts: [{ text: reply }] });
+
+    // Lógica de Figurinha
+    let figurinha = null;
+    try {
+      const figurinhasArray = Array.isArray(personagem.figurinhas) ? personagem.figurinhas : JSON.parse(personagem.figurinhas || "[]");
+      if (figurinhasArray.length > 0 && (message.toLowerCase().includes("figurinha") || Math.random() < 0.2)) {
+        figurinha = figurinhasArray[Math.floor(Math.random() * figurinhasArray.length)];
+      }
+    } catch(e) {}
 
     res.json({ reply, figurinha });
 
   } catch (err) {
-    console.error("Erro ao conversar com IA:", err);
-    res.status(500).json({ error: "Erro ao conversar com IA" });
+    console.error("ERRO FINAL:", err.message);
+    res.status(500).json({ error: "Ocorreu um erro ao processar sua mensagem." });
   }
 };
