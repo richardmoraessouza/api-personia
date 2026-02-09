@@ -7,6 +7,7 @@ import { adicionarPerson, personagens, IdPersonagem } from './controller/person.
 import { chatComPersonagem } from './controller/conversarPerson.js';
 import { buscar } from './controller/BuscarPersonagens.js';
 import { listarSeguidores, deixarDeSeguir, seguirUsuario, listarSeguindo } from './controller/seguir.js';
+import { getLikes, toggleLike, getLikesByUsuario } from './controller/like.js';
 
 const router = express.Router();
 
@@ -62,5 +63,12 @@ router.post("/deixar-de-seguir", deixarDeSeguir);
 router.get("/seguidores/:id", listarSeguidores);
 router.get("/seguindo/:id", listarSeguindo);
 
+// Adicionar ou remover like
+router.post('/toggleLike/:usuario_id/:personagem_id', toggleLike);
 
+// Contar os likes de um personagem
+router.get('/likesQuantidade/:personagem_id', getLikes);
+
+// Listar os likes de um usuário
+router.get('/likesByUsuario/:usuario_id', getLikesByUsuario);
 export default router;

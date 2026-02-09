@@ -28,17 +28,16 @@ export const adicionarPerson = async (req, res) => {
     }
 };
 
-// rota de mostrar os personagens no menu
+// rota de mostrar os personagens
 export const personagens = async (req, res) => {
     try {
-        const result = await db.query('SELECT id, nome, fotoia FROM personia2.personagens');
+        const result = await db.query('SELECT id, nome, fotoia, descricao, tipo_personagem, usuario_id FROM personia2.personagens');
         res.status(200).json(result.rows); 
     } catch (err) {
         console.error('Erro ao buscar personagens completo:', err);
         res.status(500).json({ error: 'Erro ao buscar personagens', details: err.message || err });
     }
 };
-
 
 // rota de mostrar personagem pelo idfigurinhas TEXT[] DEFAULT '{}'
 
