@@ -8,38 +8,42 @@ const conversationMemory = new Map();
 // cache de personagens
 const personagemCache = {};
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// ======= Configuração das chaves =======
-let geminiKeys = [
-  process.env.GEMINI_API_KEY,
-  process.env.GEMINI_API_KEY2,
-  process.env.GEMINI_API_KEY3,
-  process.env.GEMINI_API_KEY4,
-  process.env.GEMINI_API_KEY5,
-].filter(Boolean);
-
-let keyIndex = 0;
-let keyStatus = geminiKeys.map(() => true);
-
-// função para obter a próxima chave ativa caso a atual falhe ou estoure limite
-const getNextActiveKey = () => {
-  const totalKeys = geminiKeys.length;
-  for (let i = 0; i < totalKeys; i++) {
-    const idx = (keyIndex + i) % totalKeys;
-    const key = geminiKeys[idx];
-    if (key && keyStatus[idx]) {
-      keyIndex = (idx + 1) % totalKeys;
-      return { key, idx };
-    }
-  }
-  return null;
-};
-
+// ======= Configuração das chaves (lidas em tempo de execução) =======
 async function tryGeminiRequest(fn) {
+  const geminiKeys = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY2,
+    process.env.GEMINI_API_KEY3,
+    process.env.GEMINI_API_KEY4,
+    process.env.GEMINI_API_KEY5,
+  ].filter(Boolean);
+
+  if (process.env.GEMINI_KEYS) {
+    const extra = process.env.GEMINI_KEYS.split(',').map(k => k.trim()).filter(Boolean);
+    geminiKeys.push(...extra);
+  }
+
   if (!geminiKeys.length) throw new Error('Nenhuma Gemini API key configurada');
+
+  let keyIndex = 0;
+  const keyStatus = geminiKeys.map(() => true);
+  const totalKeys = geminiKeys.length;
+
+  const getNextActiveKey = () => {
+    for (let i = 0; i < totalKeys; i++) {
+      const idx = (keyIndex + i) % totalKeys;
+      const key = geminiKeys[idx];
+      if (key && keyStatus[idx]) {
+        keyIndex = (idx + 1) % totalKeys;
+        return { key, idx };
+      }
+    }
+    return null;
+  };
+
   let attempts = 0;
-  while (attempts < geminiKeys.length) {
+  while (attempts < totalKeys) {
     const active = getNextActiveKey();
     if (!active) break;
     const { key, idx } = active;
@@ -54,12 +58,6 @@ async function tryGeminiRequest(fn) {
   }
   throw new Error('Nenhuma chave Gemini disponível no momento.');
 }
-
-// Reseta chaves toda vez a cada 5 minutos
-setInterval(() => {
-  keyStatus = geminiKeys.map(() => true);
-  console.log('Gemini key rotation: todas as chaves reativadas.');
-}, 1000 * 60 * 5);
 
 function addToMemory(personagemId, role, text) {
   const key = (personagemId || 'global').toString();
