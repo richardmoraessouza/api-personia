@@ -1,4 +1,4 @@
-import db from '../db.js';
+import db from '../../db.js';
 
 export const toggleLike = async (req, res) => {
     const { usuario_id, personagem_id } = req.params;
@@ -67,3 +67,25 @@ export const getLikesByUsuario = async (req, res) => {
         return res.status(500).json({ error: "Internal server error" });
     }
 }
+
+// Mostra todos os favoritos do usuário
+export const getFavoritosFull = async (req, res) => {
+    const { usuarioId } = req.params;
+    
+    try {
+        const query = `
+            SELECT p.id, p.nome, p.fotoia 
+            FROM personia2.personagens p
+            INNER JOIN personia2.favoritos f ON f.personagem_id = p.id
+            WHERE f.usuario_id = $1
+        `;
+        
+        const result = await db.query(query, [usuarioId]);
+        
+        return res.status(200).json(result.rows);
+        
+    } catch (error) {
+        console.error("Erro em getFavoritosFull:", error);
+        return res.status(500).json({ error: "Erro ao buscar detalhes dos favoritos" });
+    }
+};

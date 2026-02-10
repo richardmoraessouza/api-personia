@@ -59,16 +59,18 @@ async function tryGeminiRequest(fn) {
   throw new Error('Nenhuma chave Gemini disponível no momento.');
 }
 
-function addToMemory(personagemId, role, text) {
-  const key = (personagemId || 'global').toString();
+// Chave única para cada usuário-personagem, armazenando as últimas mensagens
+function addToMemory(userId, personagemId, role, text) {
+  const key = `${userId}_${personagemId}`; 
   const mem = conversationMemory.get(key) || [];
   mem.push({ role, text, ts: Date.now() });
-  if (mem.length > 200) mem.splice(0, mem.length - 200);
+  
+  if (mem.length > 20) mem.splice(0, mem.length - 20);
   conversationMemory.set(key, mem);
 }
 
-function getLastMessages(personagemId, limit = 10) {
-  const key = (personagemId || 'global').toString();
+function getLastMessages(userId, personagemId, limit = 10) {
+  const key = `${userId}_${personagemId}`;
   const mem = conversationMemory.get(key) || [];
   return mem.slice(-limit);
 }

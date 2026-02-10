@@ -6,8 +6,9 @@ import { getUsuario, perfilOutroUsuario, nomeCriador } from './controller/dadosU
 import { adicionarPerson, personagens, IdPersonagem } from './controller/person.js';
 import { chatComPersonagem } from './controller/conversarPerson.js';
 import { buscar } from './controller/BuscarPersonagens.js';
+import { favoritos } from "./controller/visu_likes_fav/favoritos.js";
 import { listarSeguidores, deixarDeSeguir, seguirUsuario, listarSeguindo } from './controller/seguir.js';
-import { getLikes, toggleLike, getLikesByUsuario } from './controller/like.js';
+import { getLikes, toggleLike, getLikesByUsuario, getFavoritosFull } from './controller/visu_likes_fav/like.js';
 
 const router = express.Router();
 
@@ -71,4 +72,14 @@ router.get('/likesQuantidade/:personagem_id', getLikes);
 
 // Listar os likes de um usuário
 router.get('/likesByUsuario/:usuario_id', getLikesByUsuario);
+
+// Adicionar ou remover favorito
+router.post('/favoritos/:usuario_id/:personagem_id', favoritos);
+
+// Listar os likes de um usuário
+router.get('/getFavoritosByUsuario/:usuario_id', getLikesByUsuario);
+
+// Mostra todos os favoritos do usuário
+router.get('/getFavoritosFull/:usuarioId', getFavoritosFull);
+
 export default router;
