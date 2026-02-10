@@ -76,6 +76,7 @@ function getLastMessages(personagemId, limit = 10) {
 export const chatComPersonagem = async (req, res) => {
   const { personagemId } = req.params;
   const { message } = req.body;
+  console.log(`[chatComPersonagem] incoming - personagemId=${personagemId} bodyLen=${JSON.stringify(req.body).length} headers=${JSON.stringify(req.headers['user-agent'] || '')}`);
 
   try {
     if (!message) {
@@ -132,8 +133,13 @@ export const chatComPersonagem = async (req, res) => {
 
   } catch (err) {
     console.error("Erro em chatComPersonagem:", err);
-    return res.status(500).json({
-      reply: "Erro no chat com personagem 😢",
-    });
+    const msg = err?.message || '';
+    if (msg.includes('Nenhuma Gemini API key configurada') || msg.includes('Nenhuma chave Gemini')) {
+      return res.status(503).json({ reply: "Erro: Gemini API key não configurada no servidor." });
+    }
+    if (msg.includes('API key must be set') || msg.includes('API key')) {
+      return res.status(503).json({ reply: "Erro: problema com a Gemini API key no servidor." });
+    }
+    return res.status(500).json({ reply: "Erro no chat com personagem 😢" });
   }
 };
