@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import 'dotenv/config';
-import db from "../db.js";
+import db from "../../db.js";
 import buildPersonPrompt from "./buildPersonPrompt.js";
 
 const conversationMemory = new Map();
@@ -108,7 +108,8 @@ export const chatComPersonagem = async (req, res) => {
     const contents = [];
     contents.push({ role: 'model', parts: [{ text: systemPrompt || `Você é o personagem ${personagemId}. Responda como um personagem real, de forma natural.` }] });
 
-    const history = getLastMessages(personagemId, 10);
+    const userId = req.user?.id || 'anon';
+    const history = getLastMessages(userId, personagemId, 10);
     for (const m of history) {
       const role = m.role === 'assistant' ? 'model' : 'user';
       contents.push({ role, parts: [{ text: m.text }] });
@@ -125,8 +126,8 @@ export const chatComPersonagem = async (req, res) => {
       "Não consegui responder agora 😢";
 
     try {
-      addToMemory(personagemId, 'user', message);
-      addToMemory(personagemId, 'assistant', respostaIA);
+      addToMemory(userId, personagemId, 'user', message);
+      addToMemory(userId, personagemId, 'assistant', respostaIA);
     } catch (e) {
       console.warn('Não foi possível salvar memória da conversa:', e?.message || e);
     }

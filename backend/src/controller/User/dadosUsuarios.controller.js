@@ -1,4 +1,5 @@
-import db from "../db.js"
+import db from "../../db.js"
+
 // DADOS DO PRÓPRIO USUÁRIO
 export const getUsuario = async (req, res) => {
   const { id } = req.params;

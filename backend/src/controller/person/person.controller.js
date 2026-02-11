@@ -1,4 +1,4 @@
-import db from '../db.js';
+import db from '../../db.js';
 
 // rota de criar personagens
 export const adicionarPerson = async (req, res) => {
@@ -43,7 +43,7 @@ export const personagens = async (req, res) => {
 
 export const IdPersonagem = async (req, res) => {
     const { id } = req.params;
-
+    
     try {
         const result = await db.query(
             'SELECT id, nome, fotoia, descricao, usuario_id FROM personia2.personagens WHERE id = $1',
@@ -57,6 +57,6 @@ export const IdPersonagem = async (req, res) => {
         res.status(200).json(result.rows[0]); 
     } catch (err) {
         console.error('Erro ao buscar personagem:', err);
-        res.status(500).json({ error: 'Erro ao buscar personagem', details: err.message });
+        return res.status(500).json({ error: 'Erro ao buscar personagem', details: err.message });
     }
 };
