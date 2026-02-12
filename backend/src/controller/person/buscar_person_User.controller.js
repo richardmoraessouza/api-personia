@@ -1,4 +1,4 @@
-import db from '../../db.js'
+import db from '../../db/db.js';
 
 // rota para buscar personagem do usuário
 export const buscar = async (req, res) => {

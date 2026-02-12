@@ -1,4 +1,4 @@
-import db from '../../db.js';
+import db from '../../db/db.js';
 
 // rota de criar personagens
 export const adicionarPerson = async (req, res) => {
@@ -13,12 +13,23 @@ export const adicionarPerson = async (req, res) => {
             ? figurinhas.slice(0, 6)
             : [];
 
+        // Preenche com strings vazias até completar 6 slots
+        while (figurinhasFiltradas.length < 6) {
+            figurinhasFiltradas.push('')
+        }
+
         const result = await db.query(
             `INSERT INTO personia2.personagens 
              (nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuario_id, descricao, feitos, obra, tipo_personagem, figurinhas, bio)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
              RETURNING *`,
-            [nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuarioId, descricao, feitos, obra, tipo_personagem, figurinhasFiltradas, bio]
+            [
+
+             nome, genero, personalidade, comportamento, estilo, historia, 
+             fotoia, regras, usuarioId, descricao, feitos, obra, tipo_personagem, 
+             figurinhasFiltradas, bio
+
+            ]
         );
 
         res.status(201).json(result.rows[0]);
@@ -40,7 +51,6 @@ export const personagens = async (req, res) => {
 };
 
 // rota de mostrar personagem pelo idfigurinhas TEXT[] DEFAULT '{}'
-
 export const IdPersonagem = async (req, res) => {
     const { id } = req.params;
     

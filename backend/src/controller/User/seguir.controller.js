@@ -1,4 +1,4 @@
-import db from '../../db.js';
+import db from '../../db/db.js';
 
 // Seguir um usuário
 export async function seguirUsuario(req, res) {

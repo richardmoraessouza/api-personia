@@ -1,4 +1,4 @@
-import db from '../../db.js';
+import db from '../../db/db.js';
 
 // Rota de editar perfil
 export async function editarPerfil(req, res) {

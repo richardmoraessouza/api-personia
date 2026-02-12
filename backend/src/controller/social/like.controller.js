@@ -1,4 +1,4 @@
-import db from '../../db.js'
+import db from '../../db/db.js';
 
 export const toggleLike = async (req, res) => {
     const { usuario_id, personagem_id } = req.params;

@@ -10,13 +10,13 @@ import { buscar, dadosPersonagem, buscarPersonagem } from './controller/person/b
 import { favoritos, getFavoritosFull } from "./controller/social/favoritos.controller.js";
 import { listarSeguidores, deixarDeSeguir, seguirUsuario, listarSeguindo } from './controller/User/seguir.controller.js';
 import { getLikes, toggleLike, getLikesByUsuario } from './controller/social/like.controller.js';
+import { buscarUser } from "./controller/User/buscar_user.controller.js";
 
 const router = express.Router();
 
-// --- ROTAS DE BUSCA (ESTÁTICAS PRIMEIRO) ---
-// Regra de ouro: Rotas sem ":" vêm antes de rotas com ":"
-router.get('/buscarPersonagem', buscarPersonagem); // <--- AGORA ESTÁ NO TOPO
-router.get('/personagens', personagens);
+// --- ROTAS DE BUSCA ---
+router.get('/buscarPersonagem', buscarPersonagem);
+router.get('/buscarUser', buscarUser);
 
 // --- USUÁRIO ---
 router.post('/cadastra', adicionarUsuario);
@@ -26,8 +26,10 @@ router.get('/usuario/:id', verifyToken, getUsuario);
 router.put('/editar/:id', verifyToken, editarPerfil);
 router.get('/perfil/:id', perfilOutroUsuario);
 
+
 // --- PERSONAGEM (CRUD E DADOS) ---
 router.post('/criacao', verifyToken, adicionarPerson);
+router.get('/personagens', personagens);
 router.get('/buscarPerson/:usuarioId', buscar);
 router.get('/dadosPersonagem/:id', dadosPersonagem);
 router.get('/nomeCriador/:id', nomeCriador);
@@ -52,6 +54,6 @@ router.get('/getFavoritosByUsuario/:usuario_id', getLikesByUsuario);
 router.get('/getFavoritosFull/:usuarioId', getFavoritosFull);
 
 // --- CHAT IA ---
-router.post("/chat/:personagemId", verifyToken, chatComPersonagem);
+router.post("/chat/:personagemIdAtual", chatComPersonagem);
 
 export default router;

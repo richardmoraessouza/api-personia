@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import 'dotenv/config';
-import db from "../../db.js";
+import db from '../../db/db.js';
 import buildPersonPrompt from "./buildPersonPrompt.js";
 
 const conversationMemory = new Map();
@@ -76,9 +76,9 @@ function getLastMessages(userId, personagemId, limit = 10) {
 }
 
 export const chatComPersonagem = async (req, res) => {
-  const { personagemId } = req.params;
+  const { personagemIdAtual } = req.params;
   const { message } = req.body;
-  console.log(`[chatComPersonagem] incoming - personagemId=${personagemId} bodyLen=${JSON.stringify(req.body).length} headers=${JSON.stringify(req.headers['user-agent'] || '')}`);
+  console.log(`[chatComPersonagem] incoming - personagemId=${personagemIdAtual} bodyLen=${JSON.stringify(req.body).length} headers=${JSON.stringify(req.headers['user-agent'] || '')}`);
 
   try {
     if (!message) {
@@ -99,7 +99,7 @@ export const chatComPersonagem = async (req, res) => {
       return personagemCache[id];
     };
 
-    const personagem = await getPersonagem(personagemId);
+    const personagem = await getPersonagem(personagemIdAtual);
     if (!personagem) return res.status(404).json({ reply: "Personagem não encontrado" });
 
     // Monta prompt do personagem usando o builder compartilhado
@@ -109,7 +109,7 @@ export const chatComPersonagem = async (req, res) => {
     contents.push({ role: 'model', parts: [{ text: systemPrompt || `Você é o personagem ${personagemId}. Responda como um personagem real, de forma natural.` }] });
 
     const userId = req.user?.id || 'anon';
-    const history = getLastMessages(userId, personagemId, 10);
+    const history = getLastMessages(userId, personagemIdAtual, 10);
     for (const m of history) {
       const role = m.role === 'assistant' ? 'model' : 'user';
       contents.push({ role, parts: [{ text: m.text }] });

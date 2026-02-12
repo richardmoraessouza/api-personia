@@ -1,3 +1,5 @@
+import db from '../../db/db.js';
+
 // Atualizar personagem
 export const editaPerson = async (req, res) => {
     const { id } = req.params;

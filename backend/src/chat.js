@@ -34,7 +34,7 @@ async function enviarMensagem(mensagem) {
       if (data.figurinha) {
         console.log(`[Figurinha enviada: ${data.figurinha}]`);
       }
-      console.log(""); // Linha em branco para legibilidade
+      console.log("");
     }
   } catch (err) {
     console.error("Erro ao conectar com o servidor:", err.message);
