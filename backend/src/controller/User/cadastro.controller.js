@@ -20,11 +20,15 @@ export const adicionarUsuario = async (req, res) => {
       [nome, gmail, foto_perfil, descricao]
     );
 
+    
     res.status(201).json({
       mensagem: 'Cadastro realizado!',
-      id: result.rows[0].id,
-      nome: result.rows[0].nome,
-      gmail: result.rows[0].gmail,
+      usuario: { 
+        id: result.rows[0].id,
+        nome: result.rows[0].nome,
+        gmail: result.rows[0].gmail,
+        foto_perfil: foto_perfil
+      }
     });
 
   } catch (err) {

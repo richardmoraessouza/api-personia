@@ -126,8 +126,8 @@ export const chatComPersonagem = async (req, res) => {
       "Não consegui responder agora 😢";
 
     try {
-      addToMemory(userId, personagemId, 'user', message);
-      addToMemory(userId, personagemId, 'assistant', respostaIA);
+      addToMemory(userId, personagemIdAtual, 'user', message);
+      addToMemory(userId, personagemIdAtual, 'assistant', respostaIA);
     } catch (e) {
       console.warn('Não foi possível salvar memória da conversa:', e?.message || e);
     }
