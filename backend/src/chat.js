@@ -6,13 +6,9 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
-// Defina o ID do personagem com quem você quer testar
-const PERSONAGEM_ID = 29; 
-// Gere um ID anônimo fixo para o teste manter o histórico durante a sessão
+
 const anonId = "teste-cli-" + Math.random().toString(36).substring(7);
 
-console.log(`--- Chat com IA (Personagem ${PERSONAGEM_ID}) ---`);
-console.log("Digite 'sair' para encerrar\n");
 
 async function enviarMensagem(mensagem) {
   try {

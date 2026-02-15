@@ -1,12 +1,15 @@
 import { GoogleGenAI } from "@google/genai";
 import 'dotenv/config';
-import db from '../../db/db.js';
+import db from "../../db/db.js";
 import buildPersonPrompt from "./buildPersonPrompt.js";
 
 const conversationMemory = new Map();
+
+// cache de personagens
 const personagemCache = {};
 
-// Gerenciador de chaves Gemini com Failover
+
+// ======= Configuração das chaves (lidas em tempo de execução) =======
 async function tryGeminiRequest(fn) {
   const geminiKeys = [
     process.env.GEMINI_API_KEY,
@@ -30,9 +33,10 @@ async function tryGeminiRequest(fn) {
   const getNextActiveKey = () => {
     for (let i = 0; i < totalKeys; i++) {
       const idx = (keyIndex + i) % totalKeys;
-      if (geminiKeys[idx] && keyStatus[idx]) {
+      const key = geminiKeys[idx];
+      if (key && keyStatus[idx]) {
         keyIndex = (idx + 1) % totalKeys;
-        return { key: geminiKeys[idx], idx };
+        return { key, idx };
       }
     }
     return null;
@@ -47,81 +51,97 @@ async function tryGeminiRequest(fn) {
     try {
       return await fn(client);
     } catch (err) {
-      console.warn(`Gemini key ${idx + 1} falhou - tentando próxima.`);
+      console.warn(`Gemini key ${idx + 1} failed — marking inactive.`, err?.message || err);
       keyStatus[idx] = false;
       attempts++;
     }
   }
-  throw new Error('Nenhuma chave Gemini disponível.');
+  throw new Error('Nenhuma chave Gemini disponível no momento.');
 }
 
+// Chave única para cada usuário-personagem, armazenando as últimas mensagens
 function addToMemory(userId, personagemId, role, text) {
   const key = `${userId}_${personagemId}`; 
   const mem = conversationMemory.get(key) || [];
   mem.push({ role, text, ts: Date.now() });
+  
   if (mem.length > 20) mem.splice(0, mem.length - 20);
   conversationMemory.set(key, mem);
 }
 
-function getLastMessages(userId, personagemId, limit = 6) {
+function getLastMessages(userId, personagemId, limit = 10) {
   const key = `${userId}_${personagemId}`;
-  return (conversationMemory.get(key) || []).slice(-limit);
+  const mem = conversationMemory.get(key) || [];
+  return mem.slice(-limit);
 }
 
-// ======= CONTROLLER PRINCIPAL =======
-
 export const chatComPersonagem = async (req, res) => {
-  const { personagemIdAtual } = req.params;
+  const { personagemId } = req.params;
   const { message } = req.body;
-  const userId = req.user?.id || req.body.anonId || 'anon';
 
   try {
-    if (!message) return res.status(400).json({ reply: "Mensagem vazia 😅" });
+    if (!message) {
+      return res.status(400).json({ reply: "Mensagem vazia 😅" });
+    }
 
-    // 1. BUSCAR PERSONAGEM (Necessário para os arrays de figurinhas)
+    // Buscar personagem no banco ou cache
     const getPersonagem = async (id) => {
       if (personagemCache[id]) return personagemCache[id];
       const result = await db.query(
-        `SELECT id, nome, obra, genero, personalidadE as personalidade, comportamento, estilo, historia, regras, tipo_personagem, usuario_id
+        `SELECT nome, obra, genero, personalidadE as personalidade, personalidade as personalidade_old, personalidade as personalidade_dup, personalidade as personalidade_dup2, personalidade, comportamento, estilo, historia, regras, tipo_personagem
          FROM personia2.personagens WHERE id = $1`,
         [id]
       );
+
       if (result.rows.length === 0) return null;
       personagemCache[id] = result.rows[0];
       return personagemCache[id];
     };
 
-    const personagem = await getPersonagem(personagemIdAtual);
+    const personagem = await getPersonagem(personagemId);
     if (!personagem) return res.status(404).json({ reply: "Personagem não encontrado" });
 
-    // 3. FLUXO NORMAL COM INTELIGÊNCIA ARTIFICIAL
+    // Monta prompt do personagem usando o builder compartilhado
     const systemPrompt = buildPersonPrompt(personagem);
-    const history = getLastMessages(userId, personagemIdAtual, 10);
-    
-    const contents = [
-      { role: 'model', parts: [{ text: systemPrompt }] }
-    ];
 
+    const contents = [];
+    contents.push({ role: 'model', parts: [{ text: systemPrompt || `Você é o personagem ${personagemId}. Responda como um personagem real, de forma natural.` }] });
+
+    const userId = req.user?.id || 'anon';
+    const history = getLastMessages(userId, personagemId, 10);
     for (const m of history) {
-      contents.push({ 
-        role: m.role === 'assistant' ? 'model' : 'user', 
-        parts: [{ text: m.text }] 
-      });
+      const role = m.role === 'assistant' ? 'model' : 'user';
+      contents.push({ role, parts: [{ text: m.text }] });
     }
 
-    contents.push({ role: 'user', parts: [{ text: message }] });
+    contents.push({ role: 'user', parts: [{ text: `Usuário: ${message}` }] });
 
     const response = await tryGeminiRequest(async (client) => {
-      return await client.models.generateContent({ 
-        model: 'gemini-1.5-flash', // Use flash para ser mais rápido
-        contents 
-      });
+      return await client.models.generateContent({ model: 'gemini-2.5-flash', contents });
     });
 
-    const respostaIA = response.candidates?.[0]?.content?.parts?.[0]?.text || "Não consegui pensar em nada... 😶";
+    const respostaIA =
+      response.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "Não consegui responder agora 😢";
+
+    try {
+      addToMemory(userId, personagemId, 'user', message);
+      addToMemory(userId, personagemId, 'assistant', respostaIA);
+    } catch (e) {
+      console.warn('Não foi possível salvar memória da conversa:', e?.message || e);
+    }
+
+    return res.status(200).json({ reply: respostaIA, figurinha: null });
 
   } catch (err) {
     console.error("Erro em chatComPersonagem:", err);
-    return res.status(500).json({ reply: "Erro no servidor 😢" });
+    const msg = err?.message || '';
+    if (msg.includes('Nenhuma Gemini API key configurada') || msg.includes('Nenhuma chave Gemini')) {
+      return res.status(503).json({ reply: "Erro: Gemini API key não configurada no servidor." });
+    }
+    if (msg.includes('API key must be set') || msg.includes('API key')) {
+      return res.status(503).json({ reply: "Erro: problema com a Gemini API key no servidor." });
+    }
+    return res.status(500).json({ reply: "Erro no chat com personagem 😢" });
   }
 };

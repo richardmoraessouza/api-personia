@@ -51,7 +51,7 @@ router.get('/getFavoritosByUsuario/:usuario_id', getLikesByUsuario);
 router.get('/getFavoritosFull/:usuarioId', getFavoritosFull);
 
 // ------------------ CHAT IA ------------------
-router.post("/chat/:personagemIdAtual", chatComPersonagem);
-
+// router.get('/chat/:personagemIdAtual', getHistorico);
+router.post("/chat/:personagemId", chatComPersonagem);
 
 export default router;
