@@ -5,19 +5,35 @@ dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'seu_segredo_padrao_muito_seguro';
 
 export const verifyToken = (req, res, next) => {
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers.authorization || req.headers['x-access-token'] || req.headers['token'];
 
-    if (!authHeader) return res.status(401).json({ error: 'Token não fornecido' });
+    if (!authHeader) {
+        return res.status(401).json({ error: 'Token não fornecido', code: 'NO_TOKEN' });
+    }
 
-    const token = authHeader.split(' ')[1];
+    let token = authHeader;
+    if (typeof authHeader === 'string' && authHeader.toLowerCase().startsWith('bearer ')) {
+        token = authHeader.split(' ')[1];
+    }
 
-    if (!token) return res.status(401).json({ error: 'Token inválido' });
+    if (!token || token === 'undefined' || token === 'null') {
+        return res.status(401).json({ error: 'Token inválido ou não logado', code: 'INVALID_TOKEN' });
+    }
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
+        
         req.user = decoded;
-        next();
+        
+        return next();
     } catch (err) {
-        return res.status(401).json({ error: 'Token inválido ou expirado' });
+        if (err.name === 'TokenExpiredError') {
+            return res.status(401).json({ error: 'Sua sessão expirou.', code: 'SESSION_EXPIRED' });
+        }
+        
+        return res.status(401).json({ 
+            error: 'Token inválido', 
+            code: 'INVALID_TOKEN' 
+        });
     }
 };

@@ -2,32 +2,24 @@ import db from '../../db/db.js';
 
 // rota de criar personagens
 export const adicionarPerson = async (req, res) => {
-    const { nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, descricao, feitos, obra, tipo_personagem, figurinhas, bio } = req.body;
-    const usuarioId = req.user?.id;
+    const { nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, descricao, feitos, obra, tipo_personagem, bio } = req.body;
+    const usuarioId = req.user?.id || req.user?.usuarioId;
+    console.log("REQ.USER RECEBIDO:", req.user);
 
     if (!usuarioId) return res.status(401).json({ error: 'Usuário não autenticado' });
 
     try {
-        // garante que figurinhas é um array e limita a 6
-        const figurinhasFiltradas = Array.isArray(figurinhas)
-            ? figurinhas.slice(0, 6)
-            : [];
-
-        // Preenche com strings vazias até completar 6 slots
-        while (figurinhasFiltradas.length < 6) {
-            figurinhasFiltradas.push('')
-        }
 
         const result = await db.query(
             `INSERT INTO personia2.personagens 
-             (nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuario_id, descricao, feitos, obra, tipo_personagem, figurinhas, bio)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+             (nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuario_id, descricao, feitos, obra, tipo_personagem, bio)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
              RETURNING *`,
             [
 
              nome, genero, personalidade, comportamento, estilo, historia, 
              fotoia, regras, usuarioId, descricao, feitos, obra, tipo_personagem, 
-             figurinhasFiltradas, bio
+             bio
 
             ]
         );

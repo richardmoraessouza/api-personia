@@ -6,39 +6,39 @@ dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'seu_segredo_padrao_muito_seguro';
 
-// Cadastro de usuário
 export const adicionarUsuario = async (req, res) => {
-  const { nome = null, gmail, foto_perfil = null, descricao = null } = req.body;
+    const { gmail, nome, imgPerfil } = req.body;
 
-  try {
+    try {
+        
+        const novoUsuario = await db.query(
+            'INSERT INTO personia2.usuarios (gmail, nome, foto_perfil) VALUES ($1, $2, $3) RETURNING *',
+            [gmail, nome, imgPerfil]
+        );
 
-    const result = await db.query(
-      `INSERT INTO personia2.usuarios 
-        (nome, gmail, foto_perfil, descricao)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, nome, gmail`,
-      [nome, gmail, foto_perfil, descricao]
-    );
+        const user = novoUsuario.rows[0];
 
-    
-    res.status(201).json({
-      mensagem: 'Cadastro realizado!',
-      usuario: { 
-        id: result.rows[0].id,
-        nome: result.rows[0].nome,
-        gmail: result.rows[0].gmail,
-        foto_perfil: foto_perfil
-      }
-    });
+        const token = jwt.sign(
+            { id: user.id, gmail: user.gmail }, 
+            process.env.JWT_SECRET || 'seu_segredo_padrao_muito_seguro',
+            { expiresIn: '24h' }
+        );
 
-  } catch (err) {
-    console.error('🔥 ERRO NO CADASTRO:', err);
-    if (err.code === '23505' && err.constraint === 'usuarios_gmail_key') {
-        return res.status(400).json({ error: 'Este Gmail já foi cadastrado!' });
+        
+        return res.status(201).json({
+            token, 
+            usuario: {
+                id: user.id,
+                nome: user.nome,
+                gmail: user.gmail,
+                foto_perfil: user.foto_perfil
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Erro ao cadastrar usuário" });
     }
-
-    res.status(500).json({ error: 'Erro ao adicionar usuário' });
-  }
 };
 
 // Login de usuário
@@ -60,7 +60,8 @@ export const loginUsuario = async (req, res) => {
     // Token **sem expiração**
     const token = jwt.sign(
       { id: usuario.id, nome: usuario.nome },
-      JWT_SECRET
+      JWT_SECRET,
+      { expiresIn: '7d' }
     );
 
     res.status(200).json({

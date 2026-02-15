@@ -1,5 +1,5 @@
 import express from "express";
-import { verifyToken } from './middleware/verifyToken.js';
+import { verifyToken } from "./middleware/verifyToken.js";
 import { editaPerson, deletaPerson } from './controller/person/editar_deletar.controller.js';
 import { editarPerfil } from './controller/User/UserEditarPerfil.controller.js';
 import { adicionarUsuario, loginUsuario, buscarGmail } from './controller/User/cadastro.controller.js';
@@ -14,11 +14,11 @@ import { buscarUser } from "./controller/User/buscar_user.controller.js";
 
 const router = express.Router();
 
-// --- ROTAS DE BUSCA ---
+// ------------------ ROTAS DE BUSCA ------------------
 router.get('/buscarPersonagem', buscarPersonagem);
 router.get('/buscarUser', buscarUser);
 
-// --- USUÁRIO ---
+// ------------------ ROTAS DE USUÁRIO ------------------
 router.post('/cadastra', adicionarUsuario);
 router.post('/entrar', loginUsuario);
 router.get('/buscarUsuario/:gmail', buscarGmail);
@@ -26,8 +26,7 @@ router.get('/usuario/:id', verifyToken, getUsuario);
 router.put('/editar/:id', verifyToken, editarPerfil);
 router.get('/perfil/:id', perfilOutroUsuario);
 
-
-// --- PERSONAGEM (CRUD E DADOS) ---
+// ------------------ ROTAS DE PERSONAGEM ------------------
 router.post('/criacao', verifyToken, adicionarPerson);
 router.get('/personagens', personagens);
 router.get('/buscarPerson/:usuarioId', buscar);
@@ -35,11 +34,9 @@ router.get('/dadosPersonagem/:id', dadosPersonagem);
 router.get('/nomeCriador/:id', nomeCriador);
 router.put('/editarPerson/:id', verifyToken, editaPerson);
 router.delete('/deletePerson/:id', verifyToken, deletaPerson);
-
-// ROTA COM PARÂMETRO DINÂMICO (DEPOIS DA BUSCA)
 router.get('/personagens/:id', IdPersonagem); 
 
-// --- SOCIAL (FOLLOW, LIKE, FAVORITOS) ---
+// ------------------ SOCIAL ------------------
 router.post("/seguir", verifyToken, seguirUsuario);
 router.post("/deixar-de-seguir", verifyToken, deixarDeSeguir);
 router.get("/seguidores/:id", listarSeguidores);
@@ -53,7 +50,8 @@ router.post('/favoritos/:usuario_id/:personagem_id', verifyToken, favoritos);
 router.get('/getFavoritosByUsuario/:usuario_id', getLikesByUsuario);
 router.get('/getFavoritosFull/:usuarioId', getFavoritosFull);
 
-// --- CHAT IA ---
+// ------------------ CHAT IA ------------------
 router.post("/chat/:personagemIdAtual", chatComPersonagem);
+
 
 export default router;
