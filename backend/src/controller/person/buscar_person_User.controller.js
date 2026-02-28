@@ -1,8 +1,33 @@
 import db from '../../db/db.js';
 
-// rota para buscar personagem do usuário
+const CACHE_TTL = 60 * 1000; 
+const caches = {
+  byUsuario: new Map(),      
+  byId: new Map(),           
+  byNameSearch: new Map(),   
+};
+function setCache(map, key, value) {
+  map.set(key, { value, expires: Date.now() + CACHE_TTL });
+}
+function getCache(map, key) {
+  const entry = map.get(key);
+  if (!entry) return null;
+  if (entry.expires < Date.now()) {
+    map.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+
+// rota para buscar personagem do usuário (com cache)
 export const buscar = async (req, res) => {
     const { usuarioId } = req.params;
+
+    const cached = getCache(caches.byUsuario, usuarioId);
+    if (cached) {
+        return res.status(200).json(cached);
+    }
 
     try {
         const result = await db.query(
@@ -16,6 +41,7 @@ export const buscar = async (req, res) => {
             return res.status(404).json({ error: "Personagem não encontrado" });
         }
 
+        setCache(caches.byUsuario, usuarioId, result.rows);
         res.status(200).json(result.rows);
     } catch (err) {
         console.error('Erro ao carregar personagens do usuário', err);
@@ -23,9 +49,14 @@ export const buscar = async (req, res) => {
     }
 };
 
-// Buscar personagem pelo ID do personagem
+// Buscar personagem pelo ID do personagem (com cache)
 export const dadosPersonagem = async (req, res) => {
     const { id } = req.params;
+
+    const cached = getCache(caches.byId, id);
+    if (cached) {
+        return res.json({ success: true, personagem: cached });
+    }
 
     try {
         const result = await db.query(
@@ -37,6 +68,7 @@ export const dadosPersonagem = async (req, res) => {
             return res.status(404).json({ success: false, error: "Personagem não encontrado." });
         }
 
+        setCache(caches.byId, id, result.rows[0]);
         res.json({
             success: true,
             personagem: result.rows[0]
@@ -56,14 +88,20 @@ export const buscarPersonagem = async (req, res) => {
         return res.status(400).json({ success: false, error: "O parâmetro nomePersonagem é obrigatório." });
     }
 
+    const lowerTerm = nomePersonagem.toLowerCase();
+    const cached = getCache(caches.byNameSearch, lowerTerm);
+    if (cached) {
+        return res.status(200).json({ success: true, resultados: cached });
+    }
+
     try {
         // O % em volta do termo significa "qualquer coisa antes ou depois"
-        const termoBusca = `%${nomePersonagem}%`;
+        const termoBusca = `%${lowerTerm}%`;
 
         const result = await db.query(
             `SELECT id, nome, fotoia, bio, tipo_personagem 
              FROM personia2.personagens 
-             WHERE nome ILIKE $1`, 
+             WHERE LOWER(nome) LIKE $1`, 
             [termoBusca]
         );
 
@@ -74,6 +112,7 @@ export const buscarPersonagem = async (req, res) => {
             });
         }
 
+        setCache(caches.byNameSearch, lowerTerm, result.rows);
         res.status(200).json({
             success: true,
             resultados: result.rows
@@ -86,4 +125,11 @@ export const buscarPersonagem = async (req, res) => {
             error: "Erro interno ao buscar personagem." 
         });
     }
+};
+
+// helper to clear caches when data changes (create/update/delete)
+export function clearPersonCaches() {
+  caches.byUsuario.clear();
+  caches.byId.clear();
+  caches.byNameSearch.clear();
 }

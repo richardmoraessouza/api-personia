@@ -1,7 +1,33 @@
 import db from '../../db/db.js';
 
+
+const CACHE_TTL = 60 * 1000; 
+const likeCache = {
+  countByPersonagem: new Map(), 
+  byUsuario: new Map(),        
+};
+function setCache(map, key, value) {
+  map.set(key, { value, expires: Date.now() + CACHE_TTL });
+}
+function getCache(map, key) {
+  const entry = map.get(key);
+  if (!entry) return null;
+  if (entry.expires < Date.now()) {
+    map.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function clearLikeCaches(personagemId, usuarioId) {
+  if (personagemId) likeCache.countByPersonagem.delete(personagemId);
+  if (usuarioId) likeCache.byUsuario.delete(usuarioId);
+}
+
 export const toggleLike = async (req, res) => {
     const { usuario_id, personagem_id } = req.params;
+
+    clearLikeCaches(personagem_id, usuario_id);
 
     try {
         // 1. Verifica se o like já existe
@@ -31,9 +57,14 @@ export const toggleLike = async (req, res) => {
     }
 };
 
-// Contar quantos likes existem para esse personagem
+// Contar quantos likes existem para esse personagem (cacheable)
 export const getLikes = async (req, res) => {
     const { personagem_id } = req.params;
+
+    const cached = getCache(likeCache.countByPersonagem, personagem_id);
+    if (cached != null) {
+        return res.status(200).json({ personagem_id, likes: cached });
+    }
 
     try {
         const result = await db.query(
@@ -44,7 +75,7 @@ export const getLikes = async (req, res) => {
         );
 
         const totalLikes = parseInt(result.rows[0].total_likes, 10);
-
+        setCache(likeCache.countByPersonagem, personagem_id, totalLikes);
         return res.status(200).json({ personagem_id, likes: totalLikes });
     } catch (error) {
         console.error("Error in http://localhost:3000getLikes:", error);
@@ -52,15 +83,21 @@ export const getLikes = async (req, res) => {
     }
 };
 
-// Listar os likes de um usuário
+// Listar os likes de um usuário (cacheable)
 export const getLikesByUsuario = async (req, res) => {
     const { usuario_id } = req.params;
+
+    const cached = getCache(likeCache.byUsuario, usuario_id);
+    if (cached) {
+        return res.status(200).json(cached);
+    }
     try {
         const result = await db.query(
             `SELECT personagem_id FROM personia2.likes WHERE usuario_id = $1`,
             [usuario_id]
         );
         const idsCurtidos = result.rows.map(row => row.personagem_id);
+        setCache(likeCache.byUsuario, usuario_id, idsCurtidos);
         return res.status(200).json(idsCurtidos);
     } catch (error) {
         console.error("Error in getLikesByUsuario:", error);

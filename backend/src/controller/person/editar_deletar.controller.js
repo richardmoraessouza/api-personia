@@ -1,4 +1,5 @@
 import db from '../../db/db.js';
+import { clearPersonCaches } from './buscar_person_User.controller.js';
 
 // Atualizar personagem
 export const editaPerson = async (req, res) => {
@@ -31,6 +32,8 @@ export const editaPerson = async (req, res) => {
 
         const personagemAtualizado = result.rows[0];
 
+        // cache invalidation
+        clearPersonCaches();
         res.json({
             success: true,
             message: "Personagem atualizado com sucesso!",
@@ -55,6 +58,8 @@ export const deletaPerson = async (req, res) => {
             return res.status(404).json({ message: 'Personagem não encontrado'})
         }
         
+        // clear caches when a record disappears
+        clearPersonCaches();
         return res.status(200).json({
             message: 'Personagem removido com sucesso',
             deleted: result.rows[0]

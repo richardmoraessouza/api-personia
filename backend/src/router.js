@@ -2,6 +2,7 @@ import express from "express";
 import { verifyToken } from "./middleware/verifyToken.js";
 import { editaPerson, deletaPerson } from './controller/person/editar_deletar.controller.js';
 import { editarPerfil } from './controller/User/UserEditarPerfil.controller.js';
+import { getHistoricoChat } from './controller/chat_IA/HistoricoChat.controller.js'
 import { adicionarUsuario, loginUsuario, buscarGmail } from './controller/User/cadastro.controller.js';
 import { getUsuario, perfilOutroUsuario, nomeCriador } from './controller/User/dadosUsuarios.controller.js';
 import { adicionarPerson, personagens, IdPersonagem } from './controller/person/person.controller.js';
@@ -51,7 +52,11 @@ router.get('/getFavoritosByUsuario/:usuario_id', getLikesByUsuario);
 router.get('/getFavoritosFull/:usuarioId', getFavoritosFull);
 
 // ------------------ CHAT IA ------------------
-// router.get('/chat/:personagemIdAtual', getHistorico);
+
+// Chat para falar com os personagens
 router.post("/chat/:personagemId", chatComPersonagem);
+
+// Busca as mensagens do usuário e personagem
+router.get("/chat/:personagemId/historico", verifyToken, getHistoricoChat);
 
 export default router;
