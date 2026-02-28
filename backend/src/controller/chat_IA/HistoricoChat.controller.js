@@ -7,7 +7,8 @@ console.log("DEBUG: ID do usuário extraído:", userId);
   
     try {
       if (!userId) {
-        return res.status(401).json({ error: "Usuário não identificado." });
+        // usuário anônimo: apenas devolve lista vazia em vez de erro
+        return res.status(200).json([]);
       }
   
       const result = await db.query(

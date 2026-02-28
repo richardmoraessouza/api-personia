@@ -54,9 +54,11 @@ router.get('/getFavoritosFull/:usuarioId', getFavoritosFull);
 // ------------------ CHAT IA ------------------
 
 // Chat para falar com os personagens
+// não exige autenticação para que qualquer pessoa consiga conversar
 router.post("/chat/:personagemId", chatComPersonagem);
 
 // Busca as mensagens do usuário e personagem
-router.get("/chat/:personagemId/historico", verifyToken, getHistoricoChat);
+// rota acessível sem token, retorna histórico vazio para usuários anônimos
+router.get("/chat/:personagemId/historico", getHistoricoChat);
 
 export default router;

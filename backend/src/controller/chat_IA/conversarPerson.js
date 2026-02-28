@@ -71,17 +71,14 @@ export const chatComPersonagem = async (req, res) => {
   const { message } = req.body;
 
   // ⚠️ Ajuste conforme seu sistema de auth
-  const userId = req.user?.id || req.body?.userId;
+  let userId = req.user?.id || req.body?.userId;
 
   console.log(
     `[chatComPersonagem] personagemId=${personagemId} userId=${userId}`
   );
 
   try {
-    if (!userId) {
-      return res.status(401).json({ reply: "Usuário não autenticado." });
-    }
-
+    // permitir que usuários sem login conversem; não há userId em req
     if (!message || !message.trim()) {
       return res.status(400).json({ reply: "Mensagem vazia 😅" });
     }
@@ -148,7 +145,9 @@ export const chatComPersonagem = async (req, res) => {
     // =====================================================
     // HISTÓRICO
     // =====================================================
-    const history = await getLastMessagesFromDB(userId, personagemId, 10);
+    const history = userId
+      ? await getLastMessagesFromDB(userId, personagemId, 10)
+      : [];
 
     const contents = history.map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
@@ -180,10 +179,12 @@ export const chatComPersonagem = async (req, res) => {
       "Não consegui responder agora 😢";
 
     // =====================================================
-    // SALVAR HISTÓRICO
+    // SALVAR HISTÓRICO (somente se tivermos um usuário identificado)
     // =====================================================
-    await saveMessage(userId, personagemId, "user", message);
-    await saveMessage(userId, personagemId, "assistant", respostaIA);
+    if (userId) {
+      await saveMessage(userId, personagemId, "user", message);
+      await saveMessage(userId, personagemId, "assistant", respostaIA);
+    }
 
     return res.status(200).json({
       reply: respostaIA,
