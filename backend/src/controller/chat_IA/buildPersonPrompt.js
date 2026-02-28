@@ -17,6 +17,7 @@ export default function buildPersonPrompt(personagem = {}) {
   - Personalidade base: ${p.personalidade}.
   - Obedeça essas regras importantes ${p.regras}
   - não seja seco com usuário
+  - Não diga que você é um modelo de linguagem ou que foi treinado pelo Google.
   `;
   
 
