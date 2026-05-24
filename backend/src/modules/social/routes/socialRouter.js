@@ -1,0 +1,36 @@
+import { Router } from "express";
+import { getFavoritesUser, toggleFavorites } from "../controllers/favoritesController.js";
+import { toggleLike, getLikesCount, getLikesByUsuario } from "../controllers/likeController.js";
+import { verifyToken } from "../../../middleware/verifyToken.js";
+import { followUser, unfollowUser, listFollowers, listFollowing } from "../services/followersService.js";
+
+const router = Router();
+
+// Route to toggle favorite (add or remove)
+router.post('/favorites/:usuario_id/:personagem_id', verifyToken, toggleFavorites);
+
+// Route to list user's favorite characters
+router.get('/favorites-by-user/:usuario_id', getFavoritesUser);
+
+// Route to toggle like (add or remove)
+router.post('/toggle-like/:usuario_id/:personagem_id', verifyToken, toggleLike);
+
+// Route to show the quantity of likes for a character
+router.get('/likes-quantity/:personagem_id', getLikesCount);
+
+// Route to show the likes that the user has given
+router.get('/likes-by-user/:usuario_id', getLikesByUsuario);
+
+// Route to follow a user
+router.post('/follow', verifyToken, followUser);
+
+// Route to unfollow a user
+router.delete('/unfollow', verifyToken, unfollowUser);
+
+// Route to list followers
+router.get('/users/:id/followers', listFollowers);
+
+// Route to list following users
+router.get('/users/:id/following', listFollowing);
+
+export default router;
