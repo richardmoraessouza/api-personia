@@ -76,11 +76,26 @@ export const editProfileService = async (id, profileData) => {
 }
 
 export const getNameOtherUserService = async (usuarioId) => {
+    if (!usuarioId || isNaN(usuarioId)) {
+        throw new Error('ID_INVALIDO');
+    }
+
     const nameOtherUser = await userRepository.findNameOtherUser(usuarioId);
     
-    if (!nameOtherUser) {
-        throw new Error('Usuário não encontrado');
+    if (!nameOtherUser || !nameOtherUser.nome) {
+        throw new Error('USUARIO_NAO_ENCONTRADO');
     }
 
     return nameOtherUser;
+}
+
+export const findNameOtherUser = async (usuarioId) => {
+    const result = await db.query(
+      `SELECT nome FROM personia2.usuarios WHERE id = $1`,
+      [ usuarioId ]
+    );
+
+    return {
+        nome: result.rows[0]?.nome || null
+    };
 }

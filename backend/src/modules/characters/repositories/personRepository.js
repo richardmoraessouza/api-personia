@@ -2,7 +2,7 @@ import db from '../../../config/db.js';
 
 export const getPersonagensByUsuarioId = async (usuarioId) => {
   const result = await db.query(`
-    SELECT id, nome, fotoia, bio, tipo_personagem
+    SELECT id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao
     FROM personia2.personagens
     WHERE usuario_id = $1
   `, [usuarioId]);
@@ -24,7 +24,7 @@ export const findDataPersonById = async (id) => {
 export const searchPersonagensByNome = async (nomePersonagem) => {
   const lowerTerm = `%${nomePersonagem.toLowerCase()}%`;
   const result = await db.query(`
-    SELECT id, nome, fotoia, bio, tipo_personagem
+    SELECT id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao
     FROM personia2.personagens
     WHERE LOWER(nome) LIKE $1
   `, [lowerTerm]);
@@ -97,7 +97,7 @@ export const updatePersonById = async (id, person) => {
 
 export const getPersonagensPaginated = async (limit, offset) => {
   const result = await db.query(`
-    SELECT id, nome, fotoia, tipo_personagem, usuario_id, bio
+    SELECT id, nome, fotoia, tipo_personagem, usuario_id, bio, descricao
     FROM personia2.personagens
     ORDER BY id
     LIMIT $1 OFFSET $2
