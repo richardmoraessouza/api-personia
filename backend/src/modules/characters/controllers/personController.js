@@ -36,7 +36,7 @@ export const getDataPerson = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Personagem não encontrado.' });
     }
 
-    return res.json({ success: true, personagem });
+    return res.json(personagem);
   } catch (err) {
     console.error('Erro ao buscar o personagem:', err);
     return res.status(500).json({ success: false, error: 'Erro interno ao buscar personagem.' });

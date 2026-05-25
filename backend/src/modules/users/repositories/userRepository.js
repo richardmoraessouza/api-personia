@@ -63,12 +63,22 @@ export const updateProfileUserById = async (id, {nome, foto_perfil, descricao}) 
 }
 
 export const findNameOtherUser = async (usuarioId) => {
+    const id = parseInt(usuarioId, 10);
+    
+    if (isNaN(id)) {
+        throw new Error('ID_INVALIDO');
+    }
+
     const result = await db.query(
       `SELECT nome FROM personia2.usuarios WHERE id = $1`,
-      [ usuarioId ]
+      [ id ]
     );
 
+    if (!result.rows || result.rows.length === 0) {
+        return { nome: null };
+    }
+
     return {
-        nome: result.rows[0]?.nome || null
+        nome: result.rows[0].nome || null
     };
 }

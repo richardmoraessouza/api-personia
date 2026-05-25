@@ -112,14 +112,21 @@ export const editProfile = async (req, res) => {
 export const getNameOtherUser = async (req, res) => {
   const { usuarioId } = req.params;
 
+  if (!usuarioId || isNaN(usuarioId)) {
+    return res.status(400).json({ error: 'ID do usuário inválido.' });
+  }
+
   try {
-
     const nameOtherUser = await userService.getNameOtherUserService(usuarioId);
-
     return res.status(200).json(nameOtherUser);
-
   } catch (err) {
     console.error('Erro ao buscar nome do usuário:', err);
+    if (err.message === 'ID_INVALIDO') {
+      return res.status(400).json({ error: 'ID do usuário inválido.' });
+    }
+    if (err.message === 'USUARIO_NAO_ENCONTRADO') {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
+    }
     return res.status(500).json({ error: 'Erro ao buscar nome do usuário.' });
   }
 }
