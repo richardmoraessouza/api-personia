@@ -2,9 +2,13 @@ import { Router } from "express";
 import { getFavoritesUser, toggleFavorites } from "../controllers/favoritesController.js";
 import { toggleLike, getLikesCount, getLikesByUsuario } from "../controllers/likeController.js";
 import { verifyToken } from "../../../middleware/verifyToken.js";
+import { socialLimiter } from "../../../middleware/rateLimiter.js";
 import { followUser, unfollowUser, listFollowers, listFollowing } from "../services/followersService.js";
 
 const router = Router();
+
+// Aplicar rate limiter em todas as rotas POST/DELETE
+router.use(socialLimiter);
 
 // Route to toggle favorite (add or remove)
 router.post('/favorites/:usuario_id/:personagem_id', verifyToken, toggleFavorites);
