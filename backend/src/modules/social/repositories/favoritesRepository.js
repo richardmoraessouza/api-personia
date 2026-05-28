@@ -73,20 +73,4 @@ export const findFavoritesUserByUser = async (
   }
 };
 
-// EXEMPLO: Como usar transactions para múltiplas operações
-// import { withTransaction } from '../../../config/db.js';
-// 
-// export const bulkAddFavorites = async (userId, personIds) => {
-//   return withTransaction(async (client) => {
-//     for (const personId of personIds) {
-//       await client.query(
-//         `INSERT INTO personia2.favoritos (usuario_id, personagem_id)
-//          VALUES ($1, $2)`,
-//         [userId, personId]
-//       );
-//     }
-//     return { success: true, count: personIds.length };
-//   });
-// };
-
 

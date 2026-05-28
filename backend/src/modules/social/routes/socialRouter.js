@@ -22,8 +22,8 @@ router.post('/toggle-like/:usuario_id/:personagem_id', verifyToken, toggleLike);
 // Route to show the quantity of likes for a character
 router.get('/likes-quantity/:personagem_id', getLikesCount);
 
-// Route to show the likes that the user has given
-router.get('/likes-by-user/:usuario_id', getLikesByUsuario);
+// Route to show the likes that the user has given (requer autenticação)
+router.get('/likes-by-user/:usuario_id', verifyToken, getLikesByUsuario);
 
 // Route to follow a user
 router.post('/follow', verifyToken, followUser);

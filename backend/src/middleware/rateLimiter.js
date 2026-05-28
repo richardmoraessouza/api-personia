@@ -4,7 +4,7 @@ import rateLimit from 'express-rate-limit';
 // 30 requisições por 15 minutos por IP
 export const socialLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 30, // máximo 30 requisições
+  max: 200, // máximo 200 requisições
   message: {
     error: 'Muitas requisições. Tente novamente em alguns minutos.',
     retryAfter: Math.ceil(15 * 60) // segundos

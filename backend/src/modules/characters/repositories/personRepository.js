@@ -153,3 +153,50 @@ export const createPerson = async (person) => {
 
   return result.rows[0];
 }
+
+export const saveRecentCharacter = async (usuarioId, personagemId) => {
+  // 1. Insere ou atualiza o personagem atual
+  const insertQuery = `
+     INSERT INTO personia2.recent_characters (usuario_id, personagem_id, criado_em)
+     VALUES ($1, $2, CURRENT_TIMESTAMP)
+     ON CONFLICT (usuario_id, personagem_id) 
+     DO UPDATE SET criado_em = EXCLUDED.criado_em;
+  `;
+  
+  // 2. Apaga os registros mais velhos baseando-se estritamente na data (criado_em)
+  const deleteQuery = `
+     DELETE FROM personia2.recent_characters
+     WHERE usuario_id = $1
+       AND criado_em NOT IN (
+           SELECT criado_em 
+           FROM personia2.recent_characters 
+           WHERE usuario_id = $1
+           ORDER BY criado_em DESC 
+           LIMIT 10
+       );
+  `;
+
+  // Executa o insert e o delete em sequência
+  await db.query(insertQuery, [usuarioId, personagemId]);
+  await db.query(deleteQuery, [usuarioId]);
+
+  return { success: true };
+};
+
+export const findRecentCharacters = async (usuarioId) => {
+  const query = `
+    SELECT p.id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao
+    FROM (
+        SELECT DISTINCT ON (personagem_id) personagem_id, criado_em
+        FROM personia2.recent_characters
+        WHERE usuario_id = $1
+        ORDER BY personagem_id, criado_em DESC
+    ) rc
+    JOIN personia2.personagens p ON p.id = rc.personagem_id
+    ORDER BY rc.criado_em DESC
+    LIMIT 10
+  `;
+  
+  const result = await db.query(query, [usuarioId]);
+  return result.rows; // Retorna a lista dos 10 personagens
+};

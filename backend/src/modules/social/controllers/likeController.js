@@ -1,11 +1,12 @@
 import * as likeService from '../services/likeService.js';
 
-// Toggle like for a character by a user
+// ✅ CORRIGIDO - Toggle like for a character by a user
 export const toggleLike = async (req, res) => {
-  const { usuario_id, personagem_id } = req.params;
+  const usuarioId = req.user.id; // ✅ Do JWT token, não da URL!
+  const { personagem_id } = req.params;
 
   try {
-    const resp = await likeService.toggleLikeService(usuario_id, personagem_id);
+    const resp = await likeService.toggleLikeService(usuarioId, personagem_id);
     return res.status(resp.status).json({ liked: resp.liked, message: resp.message });
   } catch (err) {
     console.error('Erro no toggleLike:', err);
@@ -13,7 +14,7 @@ export const toggleLike = async (req, res) => {
   }
 };
 
-// Search for total likes of a character
+// Search for total likes of a character (sem autenticação, qualquer um pode ver)
 export const getLikesCount = async (req, res) => {
   const { personagem_id } = req.params;
 
@@ -26,12 +27,12 @@ export const getLikesCount = async (req, res) => {
   }
 };
 
-// Search for all characters liked by a user
+// ✅ CORRIGIDO - Search for all characters liked by a user
 export const getLikesByUsuario = async (req, res) => {
-  const { usuario_id } = req.params;
-
+  const usuarioId = req.user.id; // ✅ Do JWT token - só lista seus próprios likes
+  
   try {
-    const ids = await likeService.getLikesByUsuarioService(usuario_id);
+    const ids = await likeService.getLikesByUsuarioService(usuarioId);
     return res.status(200).json(ids);
   } catch (err) {
     console.error('Erro getLikesByUsuario:', err);

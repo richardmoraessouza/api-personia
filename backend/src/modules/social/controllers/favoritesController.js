@@ -1,16 +1,15 @@
 import * as socialService from "../services/favoritesService.js";
 
-
 // =========================
-// ADD / REMOVE FAVORITE
+// ✅ CORRIGIDO: ADD / REMOVE FAVORITE
 // =========================
 export const toggleFavorites = async (req, res) => {
-  const { usuario_id, personagem_id } = req.params;
+  const usuarioId = req.user.id; // ✅ Do JWT token, não da URL!
+  const { personagem_id } = req.params;
 
   try {
-
     const result = await socialService.toggleFavoritesService(
-      Number(usuario_id),
+      Number(usuarioId),
       Number(personagem_id)
     );
 
@@ -26,7 +25,7 @@ export const toggleFavorites = async (req, res) => {
 };
 
 // =========================
-// SEARCH USER FAVORITES
+// SEARCH USER FAVORITES (pública, só leitura)
 // =========================
 export const getFavoritesUser = async (req, res) => {
   
