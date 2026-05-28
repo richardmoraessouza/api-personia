@@ -1,0 +1,60 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: personia_redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_password}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - personia_network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: personia_backend
+    environment:
+      PGHOST: ${PGHOST}
+      PGPORT: 5432
+      PGUSER: ${PGUSER}
+      PGPASSWORD: ${PGPASSWORD}
+      PGDATABASE: ${PGDATABASE}
+      PGSSLMODE: ${PGSSLMODE:-require}
+      PGCHANNELBINDING: ${PGCHANNELBINDING:-require}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password}
+      REDIS_DB: 0
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3000}
+      JWT_SECRET: ${JWT_SECRET}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_API_KEY2: ${GEMINI_API_KEY2}
+      GEMINI_API_KEY3: ${GEMINI_API_KEY3}
+      GEMINI_API_KEY4: ${GEMINI_API_KEY4}
+      GEMINI_API_KEY5: ${GEMINI_API_KEY5}
+      PERSON_SERVICE_URL: ${PERSON_SERVICE_URL}
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    networks:
+      - personia_network
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+
+networks:
+  personia_network:
+    driver: bridge
