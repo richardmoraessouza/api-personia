@@ -82,7 +82,7 @@ export const limparMemoria = async (req, res) => {
   const userId = req.user?.id || req.userId || 'anon';
 
   try {
-    chatService.limparMemoriaService(userId, personagemId);
+    await chatService.limparMemoriaService(userId, personagemId);
     return res.status(200).json({
       success: true,
       message: 'Memória limpa com sucesso'

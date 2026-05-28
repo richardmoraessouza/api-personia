@@ -1,6 +1,6 @@
 import * as personRepository from '../repositories/personRepository.js';
+import { PERSONAGEM_RULES } from '../../../rules/personagemRules.js';
 
-const CACHE_TTL = 60 * 1000;
 const caches = {
   byUsuario: new Map(),
   byId: new Map(),
@@ -10,7 +10,7 @@ const caches = {
 };
 
 function setCache(map, key, value) {
-  map.set(key, { value, expires: Date.now() + CACHE_TTL });
+  map.set(key, { value, expires: Date.now() + PERSONAGEM_RULES.CACHE_TTL });
 }
 
 function getCache(map, key) {
@@ -83,7 +83,7 @@ export const updatePersonService = async (id, data) => {
   });
 
   if (!personagemAtualizado) {
-    throw new Error('PERSONAGEM_NAO_ENCONTRADO');
+    throw new Error(PERSONAGEM_RULES.PERSONAGEM_NAO_ENCONTRADO_ERROR);
   }
 
   clearPersonCaches();

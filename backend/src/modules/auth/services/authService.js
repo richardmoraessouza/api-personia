@@ -1,11 +1,9 @@
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import * as authRepository from '../repositories/authRepository.js';
+import { AUTH_RULES } from '../../../rules/authRules.js';
 
 dotenv.config();
-
-const JWT_SECRET =
-  process.env.JWT_SECRET || 'seu_segredo_padrao_muito_seguro';
 
 
 // =========================
@@ -26,9 +24,9 @@ export const createUserService = async (data) => {
       id: user.id,
       gmail: user.gmail
     },
-    JWT_SECRET,
+    AUTH_RULES.JWT_SECRET,
     {
-      expiresIn: '24h'
+      expiresIn: AUTH_RULES.JWT_EXPIRATION
     }
   );
 
@@ -52,7 +50,7 @@ export const loginUserService = async (gmail) => {
   const usuario = await authRepository.findUserByGmail(gmail);
 
   if (!usuario) {
-    throw new Error('USUARIO_NAO_ENCONTRADO');
+    throw new Error(AUTH_RULES.USER_NOT_FOUND_ERROR);
   }
 
   const token = jwt.sign(
@@ -60,7 +58,7 @@ export const loginUserService = async (gmail) => {
       id: usuario.id,
       nome: usuario.nome
     },
-    JWT_SECRET,
+    AUTH_RULES.JWT_SECRET,
     {
       expiresIn: '7d'
     }
