@@ -10,11 +10,8 @@ export const buscar = async (req, res) => {
   try {
     const personagens = await personService.getPersonagensPorUsuario(usuarioId);
 
-    if (!personagens || personagens.length === 0) {
-      return res.status(404).json({ success: false, error: 'Personagem não encontrado' });
-    }
-
-    return res.status(200).json(personagens);
+    // Return empty array with 200 status if no characters found
+    return res.status(200).json(personagens || []);
   } catch (err) {
     console.error('Erro ao carregar personagens do usuário', err);
     return res.status(500).json({ success: false, error: 'Erro ao carregar personagens do usuário.' });
@@ -126,3 +123,38 @@ export const createPerson = async (req, res) => {
   }
   
 }
+
+export const handleSaveRecentCharacter = async (req, res) => {
+  try {
+    const { usuarioId, personagemId } = req.params;
+
+    if (isNaN(Number(usuarioId)) || isNaN(Number(personagemId))) {
+      return res.status(400).json({ error: 'IDs inválidos.' });
+    }
+
+    await personService.saveRecentCharacterService(Number(usuarioId), Number(personagemId));
+
+    return res.status(200).json({ success: true, message: 'Recente atualizado!' });
+  } catch (error) {
+    console.error('Erro ao salvar recente:', error);
+    return res.status(500).json({ error: 'Erro interno ao salvar personagem recente.' });
+  }
+};
+
+// 2. Controller para BUSCAR (Gatilho do Perfil na aba recentes)
+export const handleGetRecentCharacters = async (req, res) => {
+  try {
+    const { usuarioId } = req.params;
+
+    if (isNaN(Number(usuarioId))) {
+      return res.status(400).json({ error: 'ID de usuário inválido.' });
+    }
+
+    const personagens = await personService.getRecentCharactersService(Number(usuarioId));
+
+    return res.status(200).json(personagens);
+  } catch (error) {
+    console.error('Erro ao buscar recentes:', error);
+    return res.status(500).json({ error: 'Erro interno ao buscar personagens recentes.' });
+  }
+};

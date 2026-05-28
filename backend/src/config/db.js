@@ -19,6 +19,18 @@ const pool = new Pool({
 // speeds up lookups by usuario_id and case‑insensitive name searches.
 async function ensureIndexes() {
   try {
+    // Create recent_characters table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS personia2.recent_characters (
+        usuario_id INTEGER NOT NULL,
+        personagem_id INTEGER NOT NULL,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (usuario_id, personagem_id),
+        FOREIGN KEY (usuario_id) REFERENCES personia2.usuarios(id) ON DELETE CASCADE,
+        FOREIGN KEY (personagem_id) REFERENCES personia2.personagens(id) ON DELETE CASCADE
+      )
+    `);
+    
     await pool.query(
       `CREATE INDEX IF NOT EXISTS idx_personagens_usuario_id
         ON personia2.personagens(usuario_id)`

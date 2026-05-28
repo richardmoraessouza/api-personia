@@ -5,7 +5,8 @@ const caches = {
   byUsuario: new Map(),
   byId: new Map(),
   byNameSearch: new Map(),
-  byList: new Map()
+  byList: new Map(),
+  byRecent: new Map()
 };
 
 function setCache(map, key, value) {
@@ -27,6 +28,8 @@ export const clearPersonCaches = () => {
   caches.byId.clear();
   caches.byNameSearch.clear();
   caches.byList.clear();
+  caches.byList.clear();
+  caches.byRecent.clear();
 };
 
 export const getPersonagensPorUsuario = async (usuarioId) => {
@@ -110,6 +113,7 @@ export const getPersonCreatedByUserService = async (id) => {
   return personagens;
 };
 
+// rota para criar personagem
 export const createPersonagem = async (data) => {
   const personagemCriado = await personRepository.createPerson(data);
   
@@ -119,4 +123,39 @@ export const createPersonagem = async (data) => {
 
   clearPersonCaches();
   return personagemCriado;
+};
+
+// 1. Service para Salvar a Interação
+export const saveRecentCharacterService = async (usuarioId, personagemId) => {
+  if (!usuarioId || !personagemId) {
+    throw new Error('PARAMETROS_INVALIDOS');
+  }
+
+  const resultado = await personRepository.saveRecentCharacter(usuarioId, personagemId);
+  
+  // Limpa o cache de recentes do usuário para forçar o sistema a buscar os dados novos no perfil
+  caches.byRecent.delete(usuarioId); 
+  
+  return resultado;
+};
+
+// 2. Service para Buscar os 10 Recentes (com Cache)
+export const getRecentCharactersService = async (usuarioId) => {
+  if (!usuarioId) {
+    throw new Error('USUARIO_NAO_INFORMADO');
+  }
+
+  // Tenta puxar do cache primeiro
+  const cached = getCache(caches.byRecent, usuarioId);
+  if (cached) {
+    return cached;
+  }
+
+  // Busca do banco de dados através do repository
+  const recentCharacters = await personRepository.findRecentCharacters(usuarioId);
+  
+  // Salva no cache antes de retornar
+  setCache(caches.byRecent, usuarioId, recentCharacters);
+
+  return recentCharacters;
 };
