@@ -1,61 +1,10 @@
 import * as chatRepository from '../repositories/chatRepository.js';
 import buildPersonPrompt from '../utils/buildPersonPrompt.js';
 import { generateContent } from '../utils/geminiClient.js';
+import { CHAT_RULES, validateMessage } from '../../../rules/chatRules.js';
+import * as cacheService from '../../../services/cacheService.js';
 
-const conversationMemory = new Map();
-
-/**
- * Adiciona mensagem à memória de conversa
- */
-function addToMemory(userId, personagemId, role, text) {
-  const key = `${userId}_${personagemId}`;
-  const mem = conversationMemory.get(key) || [];
-
-  mem.push({
-    role,
-    text,
-    ts: Date.now()
-  });
-
-  // Mantém apenas as últimas 20 mensagens
-  if (mem.length > 20) {
-    mem.splice(0, mem.length - 20);
-  }
-
-  conversationMemory.set(key, mem);
-}
-
-/**
- * Obtém as últimas mensagens da memória
- */
-function getLastMessages(userId, personagemId, limit = 10) {
-  const key = `${userId}_${personagemId}`;
-  const mem = conversationMemory.get(key) || [];
-  return mem.slice(-limit);
-}
-
-/**
- * Limpa memória de conversa
- */
-function clearMemory(userId, personagemId) {
-  const key = `${userId}_${personagemId}`;
-  conversationMemory.delete(key);
-}
-
-/**
- * Valida mensagem do usuário
- */
-function validateMessage(message) {
-  if (!message || typeof message !== 'string') {
-    return { valid: false, error: 'Mensagem vazia 😅' };
-  }
-
-  if (message.trim().length === 0) {
-    return { valid: false, error: 'Mensagem vazia 😅' };
-  }
-
-  return { valid: true };
-}
+// validateMessage é importada de chatRules.js
 
 /**
  * Prepara conteúdo para enviar ao Gemini
@@ -95,10 +44,10 @@ function buildGeminiContents(systemPrompt, userMessage, history) {
 function extractGeminiResponse(response) {
   try {
     return response.candidates?.[0]?.content?.parts?.[0]?.text ||
-           "Não consegui responder agora 😢";
+           CHAT_RULES.DEFAULT_ERROR_RESPONSE;
   } catch (err) {
     console.error('Erro ao extrair resposta Gemini:', err);
-    return "Não consegui responder agora 😢";
+    return CHAT_RULES.DEFAULT_ERROR_RESPONSE;
   }
 }
 
@@ -122,8 +71,8 @@ export async function chatComPersonagemService(userId, personagemId, message) {
     // Constrói prompt do personagem
     const systemPrompt = buildPersonPrompt(personagem);
 
-    // Obtém histórico
-    const history = getLastMessages(userId, personagemId, 10);
+    // Obtém histórico do Redis
+    const history = await cacheService.getLastMessages(userId, personagemId, 10);
 
     // Monta conteúdo para Gemini
     const contents = buildGeminiContents(systemPrompt, message, history);
@@ -134,9 +83,9 @@ export async function chatComPersonagemService(userId, personagemId, message) {
     // Extrai resposta
     const respostaIA = extractGeminiResponse(response);
 
-    // Salva na memória
-    addToMemory(userId, personagemId, 'user', message);
-    addToMemory(userId, personagemId, 'assistant', respostaIA);
+    // Salva na memória (Redis)
+    await cacheService.addToMemory(userId, personagemId, 'user', message);
+    await cacheService.addToMemory(userId, personagemId, 'assistant', respostaIA);
 
     return {
       reply: respostaIA,
@@ -165,18 +114,16 @@ export async function getHistoricoChatService(userId, personagemId) {
 /**
  * Limpa memória em cache
  */
-export function limparMemoriaService(userId, personagemId) {
-  clearMemory(userId, personagemId);
+export async function limparMemoriaService(userId, personagemId) {
+  return await cacheService.clearMemory(userId, personagemId);
 }
 
 /**
  * Exporta para testes
  */
 export const _internal = {
-  addToMemory,
-  getLastMessages,
-  clearMemory,
   validateMessage,
   buildGeminiContents,
-  extractGeminiResponse
+  extractGeminiResponse,
+  cacheService
 };

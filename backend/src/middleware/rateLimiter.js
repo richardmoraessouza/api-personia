@@ -1,14 +1,11 @@
 import rateLimit from 'express-rate-limit';
+import { RATE_LIMITER_RULES } from '../rules/rateLimiterRules.js';
 
 // Rate limit para ações sociais (likes, favoritos, follows)
-// 30 requisições por 15 minutos por IP
 export const socialLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 200, // máximo 200 requisições
-  message: {
-    error: 'Muitas requisições. Tente novamente em alguns minutos.',
-    retryAfter: Math.ceil(15 * 60) // segundos
-  },
+  windowMs: RATE_LIMITER_RULES.SOCIAL.windowMs,
+  max: RATE_LIMITER_RULES.SOCIAL.max,
+  message: RATE_LIMITER_RULES.SOCIAL.message,
   standardHeaders: true, // Retorna rate limit info no `RateLimit-*` headers
   skip: (req) => {
     // Skip para requisições GET (apenas protege POST/DELETE)
@@ -17,13 +14,10 @@ export const socialLimiter = rateLimit({
 });
 
 // Rate limit mais restritivo para auth (login, registro)
-// 5 requisições por 15 minutos por IP
 export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: {
-    error: 'Muitas tentativas de autenticação. Tente novamente mais tarde.'
-  },
+  windowMs: RATE_LIMITER_RULES.AUTH.windowMs,
+  max: RATE_LIMITER_RULES.AUTH.max,
+  message: RATE_LIMITER_RULES.AUTH.message,
   standardHeaders: true,
   skip: (req) => req.method === 'GET'
 });
