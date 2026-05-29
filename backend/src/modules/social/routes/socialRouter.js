@@ -16,7 +16,7 @@ router.post('/favorites/:usuario_id/:personagem_id', verifyToken, toggleFavorite
 // Route to list user's favorite characters
 router.get('/favorites-by-user/:usuario_id', getFavoritesUser);
 
-// Route to toggle like (add or remove)
+
 router.post('/toggle-like/:usuario_id/:personagem_id', verifyToken, toggleLike);
 
 // Route to show the quantity of likes for a character

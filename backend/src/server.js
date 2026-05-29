@@ -6,6 +6,7 @@ import characterRouter from "./modules/characters/routes/characterRouter.js";
 import authRouter from "./modules/auth/routes/authRouter.js";
 import socialRouter from "./modules/social/routes/socialRouter.js";
 import chatRouter from "./modules/chat/routes/chatRouter.js";
+import discoveryRouter from "./modules/discovery/routes/discoveryRouter.js";
 
 dotenv.config();
 
@@ -17,12 +18,13 @@ app.use(cors())
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
-// Rotas
+// Routes
 app.use("/users", userRouter);
 app.use("/character", characterRouter);
 app.use("/auth", authRouter);
 app.use("/social", socialRouter);
 app.use("/chat", chatRouter);
+app.use("/discovery", discoveryRouter);
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`);
