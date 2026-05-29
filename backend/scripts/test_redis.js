@@ -1,9 +1,3 @@
-#!/usr/bin/env node
-/**
- * Script para testar a conexão com Redis e o serviço de cache
- * Execute: node scripts/test_redis.js
- */
-
 import redis from 'redis';
 import dotenv from 'dotenv';
 

@@ -2,7 +2,7 @@ import db from '../../../config/db.js';
 
 
 // =========================
-// CRIAR USUÁRIO
+// CREATE USER
 // =========================
 
 export const createUser = async ({
@@ -58,7 +58,7 @@ export const findUserByGmail = async (gmail) => {
 
 
 // =========================
-// BUSCAR GMAIL
+// SEARCH BY EMAIL
 // =========================
 
 

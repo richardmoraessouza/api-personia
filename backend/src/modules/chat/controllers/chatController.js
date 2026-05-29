@@ -2,8 +2,9 @@ import * as chatService from '../services/chatService.js';
 
 /**
  * POST /chat/:personagemId
- * Chat com personagem
+ * chat with character
  */
+
 export const chatComPersonagem = async (req, res) => {
   const { personagemId } = req.params;
   const { message } = req.body;
@@ -18,11 +19,11 @@ export const chatComPersonagem = async (req, res) => {
 
     const message = err?.message || '';
 
-    // Mensagens de erro específicas
+    // Specific error messages
     if (message.includes('Nenhuma Gemini API key configurada') ||
         message.includes('Nenhuma chave Gemini')) {
       return res.status(503).json({
-        reply: "Erro: Gemini API key não configurada no servidor."
+        reply: "Error: Gemini API key not configured on server."
       });
     }
 
@@ -32,9 +33,9 @@ export const chatComPersonagem = async (req, res) => {
       });
     }
 
-    if (message.includes('Personagem não encontrado')) {
+    if (message.includes('Character not found')) {
       return res.status(404).json({
-        reply: "Personagem não encontrado"
+        reply: "Character not found"
       });
     }
 
@@ -52,7 +53,7 @@ export const chatComPersonagem = async (req, res) => {
 
 /**
  * GET /chat/:personagemId/historico
- * Busca histórico de chat
+ * Search chat history (requires authentication, but returns empty list for anonymous users)
  */
 export const getHistoricoChat = async (req, res) => {
   const { personagemId } = req.params;
@@ -60,7 +61,7 @@ export const getHistoricoChat = async (req, res) => {
 
   try {
     if (!userId) {
-      // Usuário anônimo retorna lista vazia
+      // Anonymous user returns empty list
       return res.status(200).json([]);
     }
 
@@ -68,14 +69,14 @@ export const getHistoricoChat = async (req, res) => {
     return res.status(200).json(historico);
 
   } catch (err) {
-    console.error('Erro ao buscar histórico:', err);
+    console.error('Error searching history:', err);
     return res.status(500).json({ error: 'Erro ao carregar mensagens.' });
   }
 };
 
 /**
- * DELETE /chat/:personagemId/limpar
- * Limpa histórico em cache
+ * DELETE /chat/:personagemId/clear
+ * clean history cache (requires authentication)
  */
 export const limparMemoria = async (req, res) => {
   const { personagemId } = req.params;
@@ -85,13 +86,13 @@ export const limparMemoria = async (req, res) => {
     await chatService.limparMemoriaService(userId, personagemId);
     return res.status(200).json({
       success: true,
-      message: 'Memória limpa com sucesso'
+      message: 'Memory cleared successfully'
     });
 
   } catch (err) {
-    console.error('Erro ao limpar memória:', err);
+    console.error('Error clearing memory:', err);
     return res.status(500).json({
-      error: 'Erro ao limpar memória'
+      error: 'Error clearing memory'
     });
   }
 };

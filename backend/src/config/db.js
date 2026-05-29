@@ -40,6 +40,7 @@ async function ensureIndexes() {
       `CREATE INDEX IF NOT EXISTS idx_personagens_nome_lower
         ON personia2.personagens(LOWER(nome))`
     );
+    
     console.log('Índices verificados/instalados.');
     // ensure social tables indexed as well
     await pool.query(

@@ -6,19 +6,18 @@ const router = Router();
 
 /**
  * POST /chat_ia/:personagemId
- * Chat com personagem
+ * Chat with character
  */
 router.post('/:personagemId', chatController.chatComPersonagem);
 
 /**
  * GET /chat_ia/:personagemId/historico
- * Busca histórico de chat
- */
+ * Search chat history
 router.get('/:personagemId/historico', chatController.getHistoricoChat);
 
 /**
- * DELETE /chat_ia/:personagemId/limpar
- * Limpa histórico em cache (requer autenticação)
+ * DELETE /chat_ia/:personagemId/clear
+ * Clear history cache (requires authentication)
  */
 router.delete('/:personagemId/limpar', verifyToken, chatController.limparMemoria);
 

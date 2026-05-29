@@ -1,6 +1,7 @@
 import db from '../../../config/db.js';
 
-export const getPersonagensByUsuarioId = async (usuarioId) => {
+// Get characters by user ID
+export const getCharactersByUsuarioId = async (usuarioId) => {
   const result = await db.query(`
     SELECT id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao
     FROM personia2.personagens
@@ -10,8 +11,8 @@ export const getPersonagensByUsuarioId = async (usuarioId) => {
   return result.rows;
 };
 
-// rota de mostrar os dados de um personagem específico
-export const findDataPersonById = async (id) => {
+// Get character data by ID
+export const findDataCharacterById = async (id) => {
   const result = await db.query(`
     SELECT * FROM personia2.personagens
     WHERE id = $1
@@ -20,8 +21,8 @@ export const findDataPersonById = async (id) => {
   return result.rows[0] || null;
 };
 
-// rota para buscar personagem por nome
-export const searchPersonagensByNome = async (nomePersonagem) => {
+// Search characters by name
+export const searchCharactersByName = async (nomePersonagem) => {
   const lowerTerm = `%${nomePersonagem.toLowerCase()}%`;
   const result = await db.query(`
     SELECT id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao
@@ -32,8 +33,8 @@ export const searchPersonagensByNome = async (nomePersonagem) => {
   return result.rows;
 };
 
-// rota para editar personagem
-export const updatePersonById = async (id, person) => {
+// Update character by ID
+export const updateCharacterById = async (id, person) => {
   const {
     nome,
     bio,
@@ -95,7 +96,7 @@ export const updatePersonById = async (id, person) => {
   return result.rows[0] || null;
 };
 
-export const getPersonagensPaginated = async (limit, offset) => {
+export const getCharactersPaginated = async (limit, offset) => {
   const result = await db.query(`
     SELECT id, nome, fotoia, tipo_personagem, usuario_id, bio, descricao
     FROM personia2.personagens
@@ -106,8 +107,8 @@ export const getPersonagensPaginated = async (limit, offset) => {
   return result.rows;
 };
 
-// criação de personagem
-export const createPerson = async (person) => {
+// Create new character
+export const createCharacter = async (person) => {
   const {
     nome,
     genero,
@@ -154,6 +155,7 @@ export const createPerson = async (person) => {
   return result.rows[0];
 }
 
+// Save recent character interaction - keeps only last 10 per user
 export const saveRecentCharacter = async (usuarioId, personagemId) => {
   // 1. Insere ou atualiza o personagem atual
   const insertQuery = `
@@ -176,13 +178,14 @@ export const saveRecentCharacter = async (usuarioId, personagemId) => {
        );
   `;
 
-  // Executa o insert e o delete em sequência
+  // Execute insert and delete in sequence
   await db.query(insertQuery, [usuarioId, personagemId]);
   await db.query(deleteQuery, [usuarioId]);
 
   return { success: true };
 };
 
+// Get 10 most recent characters for user
 export const findRecentCharacters = async (usuarioId) => {
   const query = `
     SELECT p.id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao
@@ -199,4 +202,26 @@ export const findRecentCharacters = async (usuarioId) => {
   
   const result = await db.query(query, [usuarioId]);
   return result.rows; // Retorna a lista dos 10 personagens
+};
+
+
+// FUNÇÕES DE VISUALIZAÇÃO ÚNICA 
+export const registerViewHistory = async (userId, characterId) => {
+  const query = `
+    INSERT INTO personia2.character_views_history (user_id, character_id)
+    VALUES ($1, $2)
+    ON CONFLICT (user_id, character_id) DO NOTHING;
+  `;
+  const result = await db.query(query, [userId, characterId]); 
+  return result.rowCount; // Returns 1 if first access, 0 if user already viewed
+};
+
+// Increment views column in main character table
+export const incrementViews = async (characterId) => {
+  const query = `
+    UPDATE personia2.personagens 
+    SET visualizacoes = visualizacoes + 1 
+    WHERE id = $1;
+  `;
+  await db.query(query, [characterId]);
 };

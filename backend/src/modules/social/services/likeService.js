@@ -34,14 +34,14 @@ export const toggleLikeService = async (usuarioId, personagemId) => {
 
   if (exists) {
     await likeRepository.removeLike(usuarioId, personagemId);
-    return { status: 200, liked: false, message: 'Like removido' };
+    return { status: 200, liked: false, message: 'Like removed' };
   }
 
   await likeRepository.createLike(usuarioId, personagemId);
-  return { status: 201, liked: true, message: 'Like adicionado' };
+    return { status: 201, liked: true, message: 'Like added' };
 };
 
-//Search for total likes of a character
+//Get total likes count for a character
 export const getLikesCountService = async (personagemId) => {
   const cached = getCache(likeCache.countByPersonagem, personagemId);
   if (cached != null) return cached;
@@ -51,8 +51,8 @@ export const getLikesCountService = async (personagemId) => {
   return total;
 };
 
-//Search for all characters liked by a user
-export const getLikesByUsuarioService = async (usuarioId) => {
+//Get all characters liked by a user
+export const getLikesByUserService = async (usuarioId) => {
   const cached = getCache(likeCache.byUsuario, usuarioId);
   if (cached) return cached;
 

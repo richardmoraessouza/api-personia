@@ -1,33 +1,43 @@
 import { Router } from "express";
-import { updatePersonagem, buscar, getDataPerson, getSearchPerson, personagens, createPerson, handleSaveRecentCharacter, handleGetRecentCharacters} from "../controllers/personController.js";
+import { updateCharacter, search, getDataPerson, getSearchPerson,
+        characters, createPerson, handleSaveRecentCharacter,
+        handleGetRecentCharacters, getCharacterProfile, countCharacterView } from "../controllers/personController.js";
 import { verifyToken } from "../../../middleware/verifyToken.js";
 
 const router = Router();
 
-// rota para mostrar os personagens de um usuário
-router.get('/user-search-by-id/:usuarioId', buscar);
+// Get characters by user ID
+router.get('/user-search-by-id/:usuarioId', search);
 
-// rota de pesquisar personagem por nome
+// Search character by name
 router.get('/search-character', getSearchPerson);
 
-// rota para mostrar todos os personagens
-router.get('/explore', personagens);
+// Get all characters (explore)
+router.get('/explore', characters);
 
-// rota de mostrar os dados de um personagem específico
+// Get character data by ID
 router.get('/data-character/:id', getDataPerson);
 
-// rota para editar personagem
-router.put("/update-character/:id", verifyToken, updatePersonagem);
+// Update character by ID (requires authentication)
+router.put("/update-character/:id", verifyToken, updateCharacter);
 
-// rota de criar personagem
+// Create new character (requires authentication)
 router.post('/create-character/:usuarioId', verifyToken, createPerson);
 
-// 🚀 ROTA 1: Salva o personagem recente (Disparada no chat/App.tsx)
-// Mapeia o POST do Axios passando os dois parâmetros
+// Save recent character interaction (called from chat)
+// Maps POST request with userId and characterId parameters
 router.post('/recent-characters/:usuarioId/:personagemId', handleSaveRecentCharacter);
 
-// 🔍 ROTA 2: Busca a lista de 10 personagens recentes (Disparada na aba do Perfil)
-// Mapeia o GET passando apenas o usuarioId
+// Get list of 10 recent characters (called from profile)
+// Maps GET request with only userId parameter
 router.get('/get-recent-characters/:usuarioId', handleGetRecentCharacters);
+
+// Get character view history (requires authentication)
+router.get('/character-views/:id', verifyToken, getCharacterProfile);
+
+// Count character views
+// React calls this endpoint when sending message
+// verifyToken middleware ensures req.user.id exists in controller
+router.get('/increment-chat-views/:id', verifyToken, countCharacterView);
 
 export default router;

@@ -1,27 +1,29 @@
 import * as userRepository from "../repositories/userRepository.js";
 
-export const getUsuario = async (req, res) => {
-    const user = await userRepository.findById(id)
+// export const getUsuario = async (req, res) => {
+//     const user = await userRepository.findById(id)
 
-    if (!user) {
-        const error = new Error('Usuário não encontrado');
-        error.status = 404;
-        throw error;
-    }
+//     if (!user) {
+//         const error = new Error('User not found');
+//         error.status = 404;
+//         throw error;
+//     }
 
-    return user;
-}
+//     return user;
+// }
 
+// Search user by ID
 export const getUserById = async (id) => {
     const user = await userRepository.findUserById(id)
 
     if (!user) {
-        throw new Error('Usuário não encontrado');
+        throw new Error('User not found');
     }
 
     return user;
 }
 
+// Get user name by ID
 export const getNameUserService = async (usuarioId) => {
     const user = await userRepository.findUserById(usuarioId);
     if (!user) {
@@ -31,25 +33,26 @@ export const getNameUserService = async (usuarioId) => {
     const nameUser = await userRepository.findNameUserById(usuarioId);
 
     if (!nameUser) {
-        throw new Error('Usuário não encontrado');
+        throw new Error('User not found');
     }
 
     return nameUser;
 }
 
+// Get another user's public profile data
 export const getOtherUserService = async (id) => {
 
     const OtherUser = await userRepository.findDateOtherUserByid(id);
     
     if (!OtherUser) {
-        throw new Error('Usuário não encontrado');
+        throw new Error('User not found');
     }
 
 
     return OtherUser;
 }
 
-// rota para editar o perfil do usuário
+// Update user profile
 export const editProfileService = async (id, profileData) => {
     const { nome, foto_perfil, descricao } = profileData || {};
     const trimmedName = nome?.toString().trim();
@@ -75,6 +78,7 @@ export const editProfileService = async (id, profileData) => {
     return updateProfile;
 }
 
+// Get another user's name by ID
 export const getNameOtherUserService = async (usuarioId) => {
     if (!usuarioId || isNaN(usuarioId)) {
         throw new Error('ID_INVALIDO');

@@ -29,24 +29,24 @@ function buildGeminiContents(systemPrompt, userMessage, history) {
     });
   }
 
-  // Adiciona mensagem do usuário
+  // Add user message
   contents.push({
     role: 'user',
-    parts: [{ text: `Usuário: ${userMessage}` }]
+    parts: [{ text: `User: ${userMessage}` }]
   });
 
   return contents;
 }
 
 /**
- * Extrai resposta do Gemini
+ * Extract response from Gemini
  */
 function extractGeminiResponse(response) {
   try {
     return response.candidates?.[0]?.content?.parts?.[0]?.text ||
            CHAT_RULES.DEFAULT_ERROR_RESPONSE;
   } catch (err) {
-    console.error('Erro ao extrair resposta Gemini:', err);
+    console.error('Error extracting Gemini response:', err);
     return CHAT_RULES.DEFAULT_ERROR_RESPONSE;
   }
 }
@@ -64,7 +64,7 @@ export async function chatComPersonagemService(userId, personagemId, message) {
   // Busca personagem
   const personagem = await chatRepository.getPersonagemById(personagemId);
   if (!personagem) {
-    throw new Error('Personagem não encontrado');
+    throw new Error('Character not found');
   }
 
   try {

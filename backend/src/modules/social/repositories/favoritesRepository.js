@@ -1,6 +1,6 @@
 import db from '../../../config/db.js';
 
-// SEARCH FAVORITES
+// Find favorite record by user and character
 export const findFavorites = async (userId, personId) => {
     try {
         const query = `
@@ -10,12 +10,12 @@ export const findFavorites = async (userId, personId) => {
         const result = await db.query(query, [userId, personId]);
         return result.rows[0] || null;
     } catch (error) {
-        console.error('[findFavorites] Erro ao procurar favorito:', error);
+        console.error('[findFavorites] Error searching for favorite:', error);
         throw error;
     }
 }
 
-// REMOVE FAVORITE
+// Remove favorite from user
 export const removeFavorite = async (userId, personId) => {
     try {
         const result = await db.query(`
@@ -24,16 +24,16 @@ export const removeFavorite = async (userId, personId) => {
         `, [userId, personId]);
         return result;
     } catch (error) {
-        console.error('[removeFavorite] Erro ao remover favorito:', error);
+        console.error('[removeFavorite] Error removing favorite:', error);
         throw error;
     }
 }
 
-// ADD FAVORITE (com tratamento de conflito)
+// Add favorite (handles conflicts - duplicate entries prevented)
 export const addFavorite = async (userId, personId) => {
     try {
-        // USE upsert para evitar erro de duplicate key
-        // Se já existe, faz DELETE; se não existe, faz INSERT
+        // Uses upsert to prevent duplicate key error
+        // If exists, do nothing; if not exists, insert
         const result = await db.query(`
             INSERT INTO personia2.favoritos (usuario_id, personagem_id)
             VALUES ($1, $2)
@@ -42,12 +42,12 @@ export const addFavorite = async (userId, personId) => {
         `, [userId, personId]);
         return result;
     } catch (error) {
-        console.error('[addFavorite] Erro ao adicionar favorito:', error);
+        console.error('[addFavorite] Error adding favorite:', error);
         throw error;
     }
 }
 
-// LIST FAVORITES OF USER
+// Get all favorites of user
 export const findFavoritesUserByUser = async (
   usuarioId
 ) => {
@@ -68,7 +68,7 @@ export const findFavoritesUserByUser = async (
     const result = await db.query(query, [usuarioId]);
     return result.rows;
   } catch (error) {
-    console.error('[findFavoritesUserByUser] Erro ao buscar favoritos:', error);
+    console.error('[findFavoritesUserByUser] Error searching for favorites:', error);
     throw error;
   }
 };
