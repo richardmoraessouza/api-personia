@@ -1,10 +1,11 @@
 import * as socialService from "../services/favoritesService.js";
 
 // =========================
-// ✅ CORRIGIDO: ADD / REMOVE FAVORITE
+// TOGGLE FAVORITE - Add or remove favorite
+// Uses JWT token for authentication
 // =========================
 export const toggleFavorites = async (req, res) => {
-  const usuarioId = req.user.id; // ✅ Do JWT token, não da URL!
+  const usuarioId = req.user.id; // From JWT token, not from URL!
   const { personagem_id } = req.params;
 
   try {
@@ -16,16 +17,16 @@ export const toggleFavorites = async (req, res) => {
     return res.status(result.status).json(result);
 
   } catch (err) {
-    console.error("Erro ao favoritar:", err);
+    console.error("Error favoriting:", err);
 
     return res.status(500).json({
-      error: "Erro ao alterar favorito"
+      error: "Error toggling favorite"
     });
   }
 };
 
 // =========================
-// SEARCH USER FAVORITES (pública, só leitura)
+// GET USER FAVORITES - Retrieve user's favorite list (public, read-only)
 // =========================
 export const getFavoritesUser = async (req, res) => {
   
@@ -34,14 +35,14 @@ export const getFavoritesUser = async (req, res) => {
 
   // SAFETY CHECK TO AVOID SENDING INVALID DATA TO THE DATABASE 
   if (!idParam || isNaN(usuarioIdNum)) {
-    return res.status(400).json({ error: 'ID de usuário inválido' });
+    return res.status(400).json({ error: 'Invalid user ID' });
   }
 
   try {
     const favoritos = await socialService.getFavoritesUserService(usuarioIdNum);
     return res.status(200).json(favoritos);
   } catch (error) {
-    console.error('Erro ao buscar favoritos:', error);
-    return res.status(500).json({ error: 'Erro ao buscar favoritos' });
+    console.error('Error searching for favorites:', error);
+    return res.status(500).json({ error: 'Error searching for favorites' });
   }
 };

@@ -11,10 +11,10 @@ export const addUser = async (req, res) => {
     return res.status(201).json(usuario);
 
   } catch (err) {
-    console.error('Erro ao cadastrar usuário:', err);
+    console.error('Error registering user:', err);
 
     return res.status(500).json({
-      error: 'Erro ao cadastrar usuário'
+      error: 'Error registering user'
     });
   }
 };
@@ -31,16 +31,16 @@ export const loginUser = async (req, res) => {
     return res.status(200).json(usuario);
 
   } catch (err) {
-    console.error('Erro ao logar usuário:', err);
+    console.error('Error logging in user:', err);
 
     if (err.message === 'USUARIO_NAO_ENCONTRADO') {
       return res.status(401).json({
-        error: 'Usuário ou senha incorretos'
+        error: 'Incorrect email or password'
       });
     }
 
     return res.status(500).json({
-      error: 'Erro ao logar usuário'
+      error: 'Error logging in user'
     });
   }
 };
@@ -59,16 +59,16 @@ export const searchByGmail = async (req, res) => {
     return res.status(200).json(usuario);
 
   } catch (err) {
-    console.error('Erro ao buscar usuário:', err);
+    console.error('Error searching user:', err);
 
     if (err.message === 'USUARIO_NAO_ENCONTRADO') {
       return res.status(404).json({
-        error: 'Usuário não encontrado'
+        error: 'User not found'
       });
     }
 
     return res.status(500).json({
-      error: 'Erro ao buscar usuário'
+      error: 'Error searching user'
     });
   }
 };

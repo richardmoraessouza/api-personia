@@ -10,6 +10,7 @@ export const FindByid = async (id) => {
     return result.rows[0];
 }
 
+// Search user by ID
 export const findUserById = async (id) => {
     const result = await db.query(`
         SELECT id, nome, foto_perfil, descricao
@@ -18,6 +19,7 @@ export const findUserById = async (id) => {
     return result.rows[0];
 }
 
+// Get user name by ID
 export const findNameUserById = async (userId) => {
     const result = await db.query(`
         SELECT nome FROM personia2.usuarios WHERE id = $1
@@ -28,6 +30,7 @@ export const findNameUserById = async (userId) => {
     return result.rows[0].nome;
 }
 
+// Get another user's public profile data
 export const findDateOtherUserByid = async (id) => {
     const result = await db.query(`
         SELECT id, nome, foto_perfil, descricao
@@ -38,7 +41,7 @@ export const findDateOtherUserByid = async (id) => {
     return result.rows[0] || null;
 }
 
-// rota para editar o perfil do usuário
+// Update user profile information by ID
 export const updateProfileUserById = async (id, {nome, foto_perfil, descricao}) => {
     const updateQuery = `
         UPDATE personia2.usuarios
@@ -62,6 +65,7 @@ export const updateProfileUserById = async (id, {nome, foto_perfil, descricao}) 
     return result.rows[0] || null;
 }
 
+// Get another user's name by ID
 export const findNameOtherUser = async (usuarioId) => {
     const id = parseInt(usuarioId, 10);
     

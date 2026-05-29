@@ -1,15 +1,15 @@
 import db from '../../../config/db.js';
 
 const personagemCache = {};
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+const CACHE_TTL = 5 * 60 * 1000; // 5 seconds
 
 /**
- * Busca personagem no banco ou cache
+ * Search character by in database or caching
  */
 export async function getPersonagemById(id) {
   const now = Date.now();
 
-  // Verifica cache
+  // Check cache
   if (personagemCache[id]) {
     const cached = personagemCache[id];
     if (now - cached.timestamp < CACHE_TTL) {
@@ -18,7 +18,7 @@ export async function getPersonagemById(id) {
     delete personagemCache[id];
   }
 
-  // Busca no banco
+  // Search in database
   const result = await db.query(
     `SELECT 
        id, nome, obra, genero, personalidade, comportamento, 
@@ -42,7 +42,7 @@ export async function getPersonagemById(id) {
 }
 
 /**
- * Busca ou cria conversa do usuário com personagem
+ * Find or create user conversation with character
  */
 export async function getConversaHistorico(usuarioId, personagemId) {
   const result = await db.query(
@@ -60,7 +60,7 @@ export async function getConversaHistorico(usuarioId, personagemId) {
 }
 
 /**
- * Salva histórico de conversa
+ * Save conversation history
  */
 export async function saveConversaHistorico(usuarioId, personagemId, historico) {
   const result = await db.query(
@@ -76,14 +76,14 @@ export async function saveConversaHistorico(usuarioId, personagemId, historico) 
 }
 
 /**
- * Limpa cache de personagem
+ * Clear character cache
  */
 export function clearPersonagemCache(personagemId) {
   delete personagemCache[personagemId];
 }
 
 /**
- * Limpa todo o cache
+ * Clear entire cache
  */
 export function clearAllCache() {
   Object.keys(personagemCache).forEach(key => delete personagemCache[key]);

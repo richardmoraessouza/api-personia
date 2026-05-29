@@ -1,5 +1,6 @@
 import db from '../../../config/db.js';
 
+// FOLLOW - Add follower relationship 
 export async function insertFollower(seguidor_id, seguido_id) {
     return await db.query(
         `INSERT INTO personia2.seguidores (seguidor_id, seguido_id)
@@ -9,7 +10,7 @@ export async function insertFollower(seguidor_id, seguido_id) {
     );
 }
 
-// DELETE FOLLOWER
+// Delete follower relationship
 export async function deleteFollower(seguidor_id, seguido_id) {
     return await db.query(
         `DELETE FROM personia2.seguidores 
@@ -18,6 +19,8 @@ export async function deleteFollower(seguidor_id, seguido_id) {
     );
 }
 
+// LIST FOLLOWERS - Get followers of a user (GET)
+// Returns list of users following this user
 export async function selectFollowers(usuario_id) {
     const result = await db.query(
         `SELECT u.id, u.nome, u.foto_perfil
@@ -29,6 +32,8 @@ export async function selectFollowers(usuario_id) {
     return result.rows;
 }
 
+// LIST FOLLOWING - Get users that a user is following (GET)
+// Returns list of users that this user is following
 export async function selectFollowing(usuario_id) {
     const result = await db.query(
         `SELECT u.id, u.nome, u.foto_perfil

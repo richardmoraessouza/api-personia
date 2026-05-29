@@ -1,8 +1,8 @@
 import * as likeService from '../services/likeService.js';
 
-// ✅ CORRIGIDO - Toggle like for a character by a user
+// Toggle like for a character by a user
 export const toggleLike = async (req, res) => {
-  const usuarioId = req.user.id; // ✅ Do JWT token, não da URL!
+  const usuarioId = req.user.id; // From JWT token, not from URL!
   const { personagem_id } = req.params;
 
   try {
@@ -14,7 +14,7 @@ export const toggleLike = async (req, res) => {
   }
 };
 
-// Search for total likes of a character (sem autenticação, qualquer um pode ver)
+// Get total likes for a character (no authentication, anyone can see)
 export const getLikesCount = async (req, res) => {
   const { personagem_id } = req.params;
 
@@ -27,12 +27,12 @@ export const getLikesCount = async (req, res) => {
   }
 };
 
-// ✅ CORRIGIDO - Search for all characters liked by a user
+// Search for all characters liked by a user
 export const getLikesByUsuario = async (req, res) => {
   const usuarioId = req.user.id; // ✅ Do JWT token - só lista seus próprios likes
   
   try {
-    const ids = await likeService.getLikesByUsuarioService(usuarioId);
+    const ids = await likeService.getLikesByUserService(usuarioId);
     return res.status(200).json(ids);
   } catch (err) {
     console.error('Erro getLikesByUsuario:', err);

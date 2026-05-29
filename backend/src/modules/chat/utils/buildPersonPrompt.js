@@ -4,7 +4,7 @@ export default function buildPersonPrompt(personagem = {}) {
   const p = personagem;
   if (!p || !p.tipo_personagem) return '';
 
-  // 1. REGRAS GERAIS: Vale para TODOS os tipos (Ficcional e Person)
+  // 1. GENERAL RULES: Apply to ALL character types (Fictional and Person)
   const regrasGerais = `
   ${GENERAL_CHARACTER_RULES}
   - Seu nome é ${p.nome} da obra ${p.obra}.
@@ -13,7 +13,7 @@ export default function buildPersonPrompt(personagem = {}) {
   - Obedeça essas regras importantes ${p.regras}
   `;
 
-  // 2. REGRAS PARA O TIPO FICCIONAL
+  // 2. RULES FOR FICTIONAL CHARACTERS
   if (p.tipo_personagem === 'ficcional') {
     return `
     ${regrasGerais}
@@ -22,7 +22,7 @@ export default function buildPersonPrompt(personagem = {}) {
     `;
   }
 
-  // 3. REGRAS PARA O TIPO PERSON
+  // 3. RULES FOR PERSON CHARACTERS
   if (p.tipo_personagem === 'person') {
     return `
     ${regrasGerais}

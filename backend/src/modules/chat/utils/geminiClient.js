@@ -5,7 +5,7 @@ let geminiKeys = [];
 let keyStatus = [];
 let keyIndex = 0;
 
-// Inicializa as chaves Gemini
+// Initialize Gemini API keys from environment variables
 export function initializeGeminiKeys() {
   geminiKeys = [
     process.env.GEMINI_API_KEY,
@@ -25,7 +25,7 @@ export function initializeGeminiKeys() {
   keyStatus = geminiKeys.map(() => true);
 }
 
-// Obtém a próxima chave ativa
+// Get next active API key with round-robin strategy
 function getNextActiveKey() {
   const totalKeys = geminiKeys.length;
 
@@ -41,14 +41,14 @@ function getNextActiveKey() {
   return null;
 }
 
-// Tenta fazer requisição com fallback de chaves
+// Try Gemini request with fallback to other API keys on failure
 export async function tryGeminiRequest(fn) {
   if (geminiKeys.length === 0) {
     initializeGeminiKeys();
   }
 
   if (!geminiKeys.length) {
-    throw new Error('Nenhuma Gemini API key configurada');
+    throw new Error('No Gemini API key configured');
   }
 
   const totalKeys = geminiKeys.length;
@@ -70,10 +70,10 @@ export async function tryGeminiRequest(fn) {
     }
   }
 
-  throw new Error('Nenhuma chave Gemini disponível no momento.');
+  throw new Error('No Gemini keys available at the moment.');
 }
 
-// Generate content com modelo especificado
+// Generate content with specified model
 export async function generateContent(contents, model = 'gemini-2.5-flash') {
   return tryGeminiRequest(async (client) => {
     return await client.models.generateContent({ model, contents });

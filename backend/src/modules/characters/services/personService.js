@@ -32,25 +32,26 @@ export const clearPersonCaches = () => {
   caches.byRecent.clear();
 };
 
-export const getPersonagensPorUsuario = async (usuarioId) => {
+// Get characters by user ID
+export const getCharactersByUser = async (usuarioId) => {
   const cached = getCache(caches.byUsuario, usuarioId);
   if (cached) {
     return cached;
   }
 
-  const personagens = await personRepository.getPersonagensByUsuarioId(usuarioId);
+  const personagens = await personRepository.getCharactersByUsuarioId(usuarioId);
   setCache(caches.byUsuario, usuarioId, personagens);
   return personagens;
 };
 
-// rota de mostrar os dados de um personagem específico
-export const getDataPersonById = async (id) => {
+// Get character data by ID with caching
+export const getDataCharacterById = async (id) => {
   const cached = getCache(caches.byId, id);
   if (cached) {
     return cached;
   }
 
-  const personagem = await personRepository.findDataPersonById(id);
+  const personagem = await personRepository.findDataCharacterById(id);
   if (personagem) {
     setCache(caches.byId, id, personagem);
   }
@@ -58,26 +59,26 @@ export const getDataPersonById = async (id) => {
   return personagem;
 };
 
-// rota para buscar personagem por nome
-export const getPersonSearchService = async (nomePersonagem) => {
+// Search for characters by name with caching
+export const getCharactersSearchService = async (nomePersonagem) => {
   const lowerTerm = nomePersonagem.toLowerCase();
   const cached = getCache(caches.byNameSearch, lowerTerm);
   if (cached) {
     return cached;
   }
 
-  const resultados = await personRepository.searchPersonagensByNome(nomePersonagem);
+  const resultados = await personRepository.searchCharactersByName(nomePersonagem);
   setCache(caches.byNameSearch, lowerTerm, resultados);
   return resultados;
 };
 
-// rota para editar personagem
-export const updatePersonService = async (id, data) => {
+// Update character by ID and clear cache
+export const updateCharacterService = async (id, data) => {
   const figurinhas = Array.isArray(data.figurinhas)
     ? data.figurinhas.filter(Boolean)
     : data.figurinhas;
 
-  const personagemAtualizado = await personRepository.updatePersonById(id, {
+  const personagemAtualizado = await personRepository.updateCharacterById(id, {
     ...data,
     figurinhas
   });
@@ -90,17 +91,19 @@ export const updatePersonService = async (id, data) => {
   return personagemAtualizado;
 };
 
-export const getPersonagens = async (page = 1, limit = 50) => {
+// Get all characters (explore)
+export const getCharactersService = async (page = 1, limit = 50) => {
   const offset = (page - 1) * limit;
   const cacheKey = `${page}:${limit}`;
   const cached = getCache(caches.byList, cacheKey);
   if (cached) return cached;
 
-  const personagens = await personRepository.getPersonagensPaginated(limit, offset);
+  const personagens = await personRepository.getCharactersPaginated(limit, offset);
   setCache(caches.byList, cacheKey, personagens);
   return personagens;
 };
 
+// ?????????????????
 export const getPersonCreatedByUserService = async (id) => {
   const cached = getCache(caches.byUsuario, id);
 
@@ -108,14 +111,14 @@ export const getPersonCreatedByUserService = async (id) => {
     return cached;
   }
 
-  const personagens = await personRepository.createPerson(id);
+  const personagens = await personRepository.createCharacter(id);
   setCache(caches.byUsuario, id, personagens);
   return personagens;
 };
 
-// rota para criar personagem
-export const createPersonagem = async (data) => {
-  const personagemCriado = await personRepository.createPerson(data);
+// Create new character
+export const createCharacterService = async (data) => {
+  const personagemCriado = await personRepository.createCharacter(data);
   
   if (!personagemCriado) {
     throw new Error('ERRO_AO_CRIAR_PERSONAGEM');
@@ -125,37 +128,61 @@ export const createPersonagem = async (data) => {
   return personagemCriado;
 };
 
-// 1. Service para Salvar a Interação
+// Service to save recent character interaction
 export const saveRecentCharacterService = async (usuarioId, personagemId) => {
   if (!usuarioId || !personagemId) {
-    throw new Error('PARAMETROS_INVALIDOS');
+    throw new Error('INVALID_PARAMETERS');
   }
 
   const resultado = await personRepository.saveRecentCharacter(usuarioId, personagemId);
   
-  // Limpa o cache de recentes do usuário para forçar o sistema a buscar os dados novos no perfil
+  // Clear cache of recent characters for user to force system to fetch new data in profile
   caches.byRecent.delete(usuarioId); 
   
   return resultado;
 };
 
-// 2. Service para Buscar os 10 Recentes (com Cache)
+// Service to get 10 recent characters (with cache)
 export const getRecentCharactersService = async (usuarioId) => {
   if (!usuarioId) {
-    throw new Error('USUARIO_NAO_INFORMADO');
+    throw new Error('USER_NOT_PROVIDED');
   }
 
-  // Tenta puxar do cache primeiro
+  // Try to get from cache first
   const cached = getCache(caches.byRecent, usuarioId);
   if (cached) {
     return cached;
   }
 
-  // Busca do banco de dados através do repository
+  // Fetch from database through repository
   const recentCharacters = await personRepository.findRecentCharacters(usuarioId);
   
-  // Salva no cache antes de retornar
+  // Save to cache before returning
   setCache(caches.byRecent, usuarioId, recentCharacters);
 
   return recentCharacters;
+};
+
+// UNIFIED FUNCTION: Register unique character view
+// Controls unique view tracking and clears cache
+
+export const registerUniqueViewService = async (usuarioId, personajeId) => {
+  if (!usuarioId || !personajeId) {
+    throw new Error('INVALID_PARAMETERS');
+  }
+
+  // 1. Try to register view history in database (returns 1 if first time, 0 if repeated)
+  const isFirstTime = await personRepository.registerViewHistory(usuarioId, personajeId);
+
+  // 2. If first time user viewing, increment +1 to view counter
+  if (isFirstTime === 1) {
+    // CORRIGIDO: de personagemId para personajeId
+    await personRepository.incrementViews(personajeId); 
+    
+    // Clear in-memory caches so frontend sees updated view count
+    clearPersonCaches();
+    return true; // Returns true indicating view was counted
+  }
+
+  return false; // Returns false if user already viewed before
 };

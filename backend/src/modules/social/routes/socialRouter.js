@@ -7,7 +7,7 @@ import { followUser, unfollowUser, listFollowers, listFollowing } from "../servi
 
 const router = Router();
 
-// Aplicar rate limiter em todas as rotas POST/DELETE
+// Apply rate limiter to all POST/DELETE routes
 router.use(socialLimiter);
 
 // Route to toggle favorite (add or remove)
@@ -22,7 +22,7 @@ router.post('/toggle-like/:usuario_id/:personagem_id', verifyToken, toggleLike);
 // Route to show the quantity of likes for a character
 router.get('/likes-quantity/:personagem_id', getLikesCount);
 
-// Route to show the likes that the user has given (requer autenticação)
+// Route to show likes that the user has given (requires authentication)
 router.get('/likes-by-user/:usuario_id', verifyToken, getLikesByUsuario);
 
 // Route to follow a user

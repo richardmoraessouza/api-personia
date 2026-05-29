@@ -2,7 +2,7 @@ import * as socialRepository from "../repositories/favoritesRepository.js";
 
 
 // =========================
-// CACHE
+// CACHE MANAGEMENT
 // =========================
 
 const CACHE_TTL = 60 * 1000;
@@ -36,16 +36,14 @@ function clearFavCache(usuarioId) {
 }
 
 
-// =========================
-// TOGGLE FAVORITE
-// =========================
-
+// Toggle favorite status for character
+// Adds favorite if not exists, removes if already favorited
 export const toggleFavoritesService = async (
   usuarioId,
   personagemId
 ) => {
 
-  // CLEAR USER CACHE
+  // Clear user cache when toggling favorites
   clearFavCache(usuarioId);
 
   const favoritoExiste =
@@ -54,7 +52,7 @@ export const toggleFavoritesService = async (
       personagemId
     );
 
-  // REMOVE FAVORITE
+  // If favorite exists, remove it
   if (favoritoExiste) {
 
     await socialRepository.removeFavorite(
@@ -65,11 +63,11 @@ export const toggleFavoritesService = async (
     return {
       status: 200,
       favorited: false,
-      message: 'Favorito removido'
+      message: 'Favorite removed'
     };
   }
 
-  // ADD FAVORITE
+  // Add new favorite
   await socialRepository.addFavorite(
     usuarioId,
     personagemId
@@ -78,17 +76,15 @@ export const toggleFavoritesService = async (
   return {
     status: 201,
     favorited: true,
-    message: 'Favorito adicionado'
-  };
+      message: 'Favorite added'
+    };
 };
 
 // =========================
-// LIST FAVORITES OF USER
+// GET USER FAVORITES
 // =========================
 
-export const getFavoritesUserService = async (
-  usuarioId
-) => {
+export const getFavoritesUserService = async (usuarioId) => {
 
   const cached = getCache(
     favCache.byUsuario,
