@@ -24,13 +24,11 @@ async function enviarMensagem(mensagem) {
     const data = await res.json();
 
     if (data.error) {
-      console.log(`Erro da IA: ${data.error}`);
+      // Error handling
     } else {
-      console.log(`IA: ${data.reply}`);
       if (data.figurinha) {
-        console.log(`[Figurinha enviada: ${data.figurinha}]`);
+        // Sticker sent
       }
-      console.log("");
     }
   } catch (err) {
     console.error("Erro ao conectar com o servidor:", err.message);

@@ -1,4 +1,4 @@
-import * as personService from '../services/personService.js';
+import * as characterService from '../services/CharacterService.js';
 import * as personRepository from '../repositories/personRepository.js';
 
 // Get characters by user ID
@@ -10,7 +10,7 @@ export const search = async (req, res) => {
   }
 
   try {
-    const personagens = await personService.getCharactersByUser(usuarioId);
+    const personagens = await characterService.getCharactersByUser(usuarioId);
 
     // Return empty array with 200 status if no characters found
     return res.status(200).json(personagens || []);
@@ -21,7 +21,7 @@ export const search = async (req, res) => {
 };
 
 // Get character data by ID
-export const getDataPerson = async (req, res) => {
+export const getDataCharacter = async (req, res) => {
   const { id } = req.params;
 
   if (!id) {
@@ -29,7 +29,7 @@ export const getDataPerson = async (req, res) => {
   }
 
   try {
-    const personagem = await personService.getDataCharacterById(id);
+    const personagem = await characterService.getDataCharacterById(id);
 
     if (!personagem) {
       return res.status(404).json({ success: false, error: 'Character not found.' });
@@ -43,7 +43,7 @@ export const getDataPerson = async (req, res) => {
 };
 
 // Search character by name
-export const getSearchPerson = async (req, res) => {
+export const getSearchCharacter = async (req, res) => {
   const { nomePersonagem } = req.query;
 
   if (!nomePersonagem) {
@@ -51,7 +51,7 @@ export const getSearchPerson = async (req, res) => {
   }
 
   try {
-    const resultados = await personService.getCharactersSearchService(nomePersonagem);
+    const resultados = await characterService.getCharactersSearchService(nomePersonagem);
 
     if (resultados.length === 0) {
       return res.status(404).json({ success: false, message: 'No character found with that name.' });
@@ -69,7 +69,7 @@ export const updateCharacter = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const personagemAtualizado = await personService.updateCharacterService(id, req.body);
+    const personagemAtualizado = await characterService.updateCharacterService(id, req.body);
 
     return res.status(200).json({
       success: true,
@@ -93,26 +93,12 @@ export const updateCharacter = async (req, res) => {
   }
 };
 
-// Get all characters (explore)
-export const characters = async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 50;
-
-  try {
-    const lista = await personService.getCharactersService(page, limit);
-    return res.status(200).json(lista);
-  } catch (err) {
-    console.error('Error searching full characters:', err);
-    return res.status(500).json({ error: 'Error searching characters', details: err.message || err });
-  }
-};
-
 // Route to create character
-export const createPerson = async (req, res) => {
+export const createCharacter = async (req, res) => {
   const { usuarioId } = req.params;
 
   try {
-    const novoPersonagem = await personService.createCharacterService({ ...req.body, usuarioId });
+    const novoPersonagem = await characterService.createCharacterService({ ...req.body, usuarioId });
 
     return res.status(201).json({
       success: true,
@@ -136,7 +122,7 @@ export const handleSaveRecentCharacter = async (req, res) => {
       return res.status(400).json({ error: 'Invalid IDs.' });
     }
 
-    await personService.saveRecentCharacterService(Number(usuarioId), Number(personagemId));
+    await characterService.saveRecentCharacterService(Number(usuarioId), Number(personagemId));
 
     return res.status(200).json({ success: true, message: 'Recente atualizado!' });
   } catch (error) {
@@ -154,7 +140,7 @@ export const handleGetRecentCharacters = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user ID.' });
     }
 
-    const personagens = await personService.getRecentCharactersService(Number(usuarioId));
+    const personagens = await characterService.getRecentCharactersService(Number(usuarioId));
 
     return res.status(200).json(personagens);
   } catch (error) {
@@ -174,10 +160,10 @@ export const getCharacterProfile = async (req, res) => {
     }
 
     // 1. Run unified service function to check/count view
-    await personService.registerUniqueViewService(userId, characterId);
+    await characterService.registerUniqueViewService(userId, characterId);
 
     // push the updated character data
-    const personagem = await personService.getDataPersonById(characterId);
+    const personagem = await characterService.getDataCharacterById(characterId);
 
     if (!personagem) {
       return res.status(404).json({ error: 'Character not found.' });
@@ -200,7 +186,7 @@ export const countCharacterView = async (req, res) => {
     }
 
     // Call same unified service function
-    const isNewView = await personService.registerUniqueViewService(userId, characterId);
+    const isNewView = await characterService.registerUniqueViewService(userId, characterId);
 
     if (isNewView) {
       return res.json({ 
@@ -217,5 +203,35 @@ export const countCharacterView = async (req, res) => {
   } catch (error) {
     console.error("Error running view logic:", error);
     return res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+};
+
+// Route to get characters for explore page with pagination and popularity seeding
+export const getExploreCharacters = async (req, res) => {
+  try {
+    const limit = Number(req.query.limit) || 20;
+    const offset = Number(req.query.offset) || 0;
+    const seed = Number(req.query.seed) || 0.5;
+
+    const popularWeek = await characterService.getPopularWeekService();
+
+    const popularIds =
+      popularWeek?.length > 0
+        ? popularWeek.map(char => char.id)
+        : [];
+
+    const characters = await personRepository.getCharactersPaginated(
+      limit,
+      offset,
+      seed,
+      popularIds
+    );
+
+    res.json(characters);
+  } catch (error) {
+    console.error("Erro na rota de explorar:", error);
+    res.status(500).json({
+      error: error.message
+    });
   }
 };

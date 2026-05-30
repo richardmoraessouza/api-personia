@@ -15,10 +15,13 @@ export const findLike = async (usuarioId, personagemId) => {
 // CREATE LIKE - Add like from user to character
 // ============================
 export const createLike = async (usuarioId, personagemId) => {
-  await db.query(
-    `INSERT INTO personia2.likes (usuario_id, personagem_id) VALUES ($1, $2)`,
+  const result = await db.query(
+    `INSERT INTO personia2.likes (usuario_id, personagem_id) VALUES ($1, $2)
+     ON CONFLICT (usuario_id, personagem_id) DO NOTHING
+     RETURNING id`,
     [usuarioId, personagemId]
   );
+  return result.rows.length > 0; // true if inserted, false if already existed
 };
 
 // ============================
