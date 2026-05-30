@@ -1,40 +1,13 @@
 import * as socialRepository from "../repositories/favoritesRepository.js";
+import * as cacheService from "../../../services/cacheService.js";
 
-
-// =========================
-// CACHE MANAGEMENT
-// =========================
-
-const CACHE_TTL = 60 * 1000;
-
-const favCache = {
-  byUsuario: new Map(),
+/**
+ * CONFIGURAÇÃO DE CACHE
+ * TTLs em segundos
+ */
+const CACHE_TTL = {
+  USER_FAVORITES: 10 * 60  // 10 minutos - favoritos do usuário
 };
-
-function setCache(map, key, value) {
-  map.set(key, {
-    value,
-    expires: Date.now() + CACHE_TTL
-  });
-}
-
-function getCache(map, key) {
-  const entry = map.get(key);
-
-  if (!entry) return null;
-
-  if (entry.expires < Date.now()) {
-    map.delete(key);
-    return null;
-  }
-
-  return entry.value;
-}
-
-function clearFavCache(usuarioId) {
-  favCache.byUsuario.delete(usuarioId);
-}
-
 
 // Toggle favorite status for character
 // Adds favorite if not exists, removes if already favorited
@@ -42,10 +15,6 @@ export const toggleFavoritesService = async (
   usuarioId,
   personagemId
 ) => {
-
-  // Clear user cache when toggling favorites
-  clearFavCache(usuarioId);
-
   const favoritoExiste =
     await socialRepository.findFavorites(
       usuarioId,
@@ -54,11 +23,13 @@ export const toggleFavoritesService = async (
 
   // If favorite exists, remove it
   if (favoritoExiste) {
-
     await socialRepository.removeFavorite(
       usuarioId,
       personagemId
     );
+
+    // Invalida cache de favoritos do usuário
+    await cacheService.cacheDel(`favorite:user:${usuarioId}`);
 
     return {
       status: 200,
@@ -73,38 +44,26 @@ export const toggleFavoritesService = async (
     personagemId
   );
 
+  // Invalida cache de favoritos do usuário
+  await cacheService.cacheDel(`favorite:user:${usuarioId}`);
+
   return {
     status: 201,
     favorited: true,
-      message: 'Favorite added'
-    };
+    message: 'Favorite added'
+  };
 };
 
 // =========================
-// GET USER FAVORITES
+// GET USER FAVORITES (com cache)
 // =========================
 
 export const getFavoritesUserService = async (usuarioId) => {
-
-  const cached = getCache(
-    favCache.byUsuario,
-    usuarioId
+  const cacheKey = `favorite:user:${usuarioId}`;
+  
+  return await cacheService.cacheWithFallback(
+    cacheKey,
+    () => socialRepository.findFavoritesUserByUser(usuarioId),
+    CACHE_TTL.USER_FAVORITES
   );
-
-  if (cached) {
-    return cached;
-  }
-
-  const favoritos =
-    await socialRepository.findFavoritesUserByUser(
-      usuarioId
-    );
-
-  setCache(
-    favCache.byUsuario,
-    usuarioId,
-    favoritos
-  );
-
-  return favoritos;
 };

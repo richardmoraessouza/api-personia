@@ -1,16 +1,14 @@
 import * as userRepository from "../repositories/userRepository.js";
+import * as cacheService from "../../../services/cacheService.js";
 
-// export const getUsuario = async (req, res) => {
-//     const user = await userRepository.findById(id)
-
-//     if (!user) {
-//         const error = new Error('User not found');
-//         error.status = 404;
-//         throw error;
-//     }
-
-//     return user;
-// }
+/**
+ * CONFIGURAÇÃO DE CACHE
+ * TTLs em segundos
+ */
+const CACHE_TTL = {
+  USER_NAME: 30 * 60,       // 30 minutos para nomes de usuário (dados imutáveis)
+  USER_PROFILE: 15 * 60,    // 15 minutos para perfil
+};
 
 // Search user by ID
 export const getUserById = async (id) => {
@@ -23,20 +21,20 @@ export const getUserById = async (id) => {
     return user;
 }
 
-// Get user name by ID
+// Get user name by ID (com cache - nomes raramente mudam)
 export const getNameUserService = async (usuarioId) => {
     const user = await userRepository.findUserById(usuarioId);
     if (!user) {
         throw new Error('ID_INVALIDO');
     }
 
-    const nameUser = await userRepository.findNameUserById(usuarioId);
-
-    if (!nameUser) {
-        throw new Error('User not found');
-    }
-
-    return nameUser;
+    const cacheKey = `user:name:${usuarioId}`;
+    
+    return await cacheService.cacheWithFallback(
+        cacheKey,
+        () => userRepository.findNameUserById(usuarioId),
+        CACHE_TTL.USER_NAME
+    );
 }
 
 // Get another user's public profile data
@@ -47,7 +45,6 @@ export const getOtherUserService = async (id) => {
     if (!OtherUser) {
         throw new Error('User not found');
     }
-
 
     return OtherUser;
 }
@@ -75,22 +72,25 @@ export const editProfileService = async (id, profileData) => {
         throw new Error('USUARIO_NAO_ENCONTRADO');
     }
 
+    // Invalida cache do nome ao editar perfil
+    await cacheService.cacheDel(`user:name:${id}`);
+
     return updateProfile;
 }
 
-// Get another user's name by ID
+// Get another user's name by ID (com cache)
 export const getNameOtherUserService = async (usuarioId) => {
     if (!usuarioId || isNaN(usuarioId)) {
         throw new Error('ID_INVALIDO');
     }
 
-    const nameOtherUser = await userRepository.findNameOtherUser(usuarioId);
+    const cacheKey = `user:name:${usuarioId}`;
     
-    if (!nameOtherUser || !nameOtherUser.nome) {
-        throw new Error('USUARIO_NAO_ENCONTRADO');
-    }
-
-    return nameOtherUser;
+    return await cacheService.cacheWithFallback(
+        cacheKey,
+        () => userRepository.findNameOtherUser(usuarioId),
+        CACHE_TTL.USER_NAME
+    );
 }
 
 export const findNameOtherUser = async (usuarioId) => {

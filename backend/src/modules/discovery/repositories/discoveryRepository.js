@@ -38,7 +38,7 @@ export const findPopularWeek = async () => {
 
     -- Joga os maiores Scores para o topo e usa as visualizações como critério de desempate
     ORDER BY score_popularidade DESC, p.visualizacoes DESC
-    LIMIT 15;
+    LIMIT 10;
         `);
 
     return result.rows;
