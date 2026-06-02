@@ -1,68 +1,60 @@
-import * as followersRepository from '../repository/followersRepository.js';
+import * as followersService from '../services/followersService.js';
 
 // ============================
 // FOLLOW - Add follower relationship (POST)
-// Sends follower_id and followed_id in request body
 // ============================
-export async function follow(req, res) {
-    const { seguidor_id, seguido_id } = req.body;
-
+export async function followUser(req, res) {
     try {
-        await followersRepository.insertFollower(seguidor_id, seguido_id);
-        return res.json({ success: true, message: "You are now following this user!" });
-    } catch (error) {
-        if (error.message.startsWith("VALIDATION_ERROR:")) {
-            return res.status(400).json({ success: false, error: error.message.replace("VALIDATION_ERROR: ", "") });
+        const { seguidor_id, seguido_id } = req.body;
+        await followersService.followUserService(seguidor_id, seguido_id);
+        return res.status(201).json({ success: true, message: 'Following user' });
+    } catch (err) {
+        if (err.message.includes('VALIDATION_ERROR')) {
+            return res.status(400).json({ success: false, error: err.message.replace('VALIDATION_ERROR: ', '') });
         }
-        console.error("Error following user:", error);
-        return res.status(500).json({ success: false, error: "Internal error while following user." });
+        console.error('Error following:', err);
+        return res.status(500).json({ error: err.message });
     }
 }
 
 // ============================
-// UNFOLLOW - Remove follower relationship (POST)
-// Sends follower_id and followed_id in request body
+// UNFOLLOW - Remove follower relationship (DELETE)
 // ============================
-export async function unfollow(req, res) {
-    const { seguidor_id, seguido_id } = req.body;
-
+export async function unfollowUser(req, res) {
     try {
-        await followersRepository.deleteFollower(seguidor_id, seguido_id);
-        return res.json({ success: true, message: "You are no longer following this user." });
-    } catch (error) {
-        console.error("Error unfollowing user:", error);
-        return res.status(500).json({ success: false, error: "Internal error while unfollowing user." });
+        const { seguidor_id, seguido_id } = req.body;
+        await followersService.unfollowUserService(seguidor_id, seguido_id);
+        return res.status(200).json({ success: true, message: 'Unfollowed user' });
+    } catch (err) {
+        console.error('Error unfollowing:', err);
+        return res.status(500).json({ error: err.message });
     }
 }
 
 // ============================
-// LIST FOLLOWERS - Get followers of a user (GET)
-// Returns list of users following this user
+// LIST FOLLOWERS - Get all followers of a user (GET)
 // ============================
 export async function listFollowers(req, res) {
-    const { id } = req.params;
-
     try {
-        const seguidores = await followersRepository.selectFollowers(id);
-        return res.json({ success: true, seguidores });
-    } catch (error) {
-        console.error("Error listing followers:", error);
-        return res.status(500).json({ success: false, error: "Internal error while listing followers." });
+        const { id } = req.params;
+        const seguidores = await followersService.listFollowersService(id);
+        return res.status(200).json(seguidores);
+    } catch (err) {
+        console.error('Error listing followers:', err);
+        return res.status(500).json({ error: err.message });
     }
 }
 
 // ============================
 // LIST FOLLOWING - Get users that this user follows (GET)
-// Returns list of users that this user is following
 // ============================
 export async function listFollowing(req, res) {
-    const { id } = req.params;
-
     try {
-        const seguindo = await followersRepository.selectFollowing(id);
-        return res.json({ success: true, seguindo });
-    } catch (error) {
-        console.error("Error listing following:", error);
-        return res.status(500).json({ success: false, error: "Internal error while listing following." });
+        const { id } = req.params;
+        const seguindo = await followersService.listFollowingService(id);
+        return res.status(200).json(seguindo);
+    } catch (err) {
+        console.error('Error listing following:', err);
+        return res.status(500).json({ error: err.message });
     }
 }

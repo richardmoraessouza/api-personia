@@ -2,7 +2,11 @@ import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'seu_segredo_padrao_muito_seguro';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET não configurado. Adicione ao arquivo .env');
+}
 
 export const verifyToken = (req, res, next) => {
     const authHeader = req.headers.authorization || req.headers['x-access-token'] || req.headers['token'];

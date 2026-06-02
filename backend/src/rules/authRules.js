@@ -5,7 +5,12 @@
 
 export const AUTH_RULES = {
   // JWT
-  JWT_SECRET: process.env.JWT_SECRET || 'seu_segredo_padrao_muito_seguro',
+  JWT_SECRET: (() => {
+    if (!process.env.JWT_SECRET) {
+      throw new Error('❌ JWT_SECRET não definido em .env - SEGURANÇA CRÍTICA!');
+    }
+    return process.env.JWT_SECRET;
+  })(),
   JWT_EXPIRATION: '24h',
   
   // Erros
