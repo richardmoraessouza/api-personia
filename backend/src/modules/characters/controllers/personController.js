@@ -67,8 +67,34 @@ export const getSearchCharacter = async (req, res) => {
 // Update character by ID
 export const updateCharacter = async (req, res) => {
   const { id } = req.params;
+  const usuarioId = req.user?.id;
+
+  // ✅ VALIDAÇÃO: Usuário autenticado é obrigatório
+  if (!usuarioId) {
+    return res.status(401).json({
+      success: false,
+      error: 'Não autorizado. Faça login primeiro.'
+    });
+  }
 
   try {
+    // ✅ VALIDAÇÃO: Verificar propriedade do personagem
+    const personagem = await characterService.getDataCharacterById(id);
+    
+    if (!personagem) {
+      return res.status(404).json({
+        success: false,
+        error: 'Character not found.'
+      });
+    }
+
+    if (personagem.usuario_id !== usuarioId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Não autorizado. Você só pode editar seus próprios personagens.'
+      });
+    }
+
     const personagemAtualizado = await characterService.updateCharacterService(id, req.body);
 
     return res.status(200).json({
@@ -96,6 +122,23 @@ export const updateCharacter = async (req, res) => {
 // Route to create character
 export const createCharacter = async (req, res) => {
   const { usuarioId } = req.params;
+  const tokenUserId = req.user?.id;
+
+  // ✅ VALIDAÇÃO: Usuário autenticado é obrigatório
+  if (!tokenUserId) {
+    return res.status(401).json({
+      success: false,
+      error: 'Não autorizado. Faça login primeiro.'
+    });
+  }
+
+  // ✅ VALIDAÇÃO CRÍTICA: Usuário só pode criar para SI MESMO
+  if (parseInt(usuarioId) !== tokenUserId) {
+    return res.status(403).json({
+      success: false,
+      error: 'Não autorizado. Você só pode criar personagens para sua própria conta.'
+    });
+  }
 
   try {
     const novoPersonagem = await characterService.createCharacterService({ ...req.body, usuarioId });
@@ -115,11 +158,21 @@ export const createCharacter = async (req, res) => {
 
 //save recent character interaction
 export const handleSaveRecentCharacter = async (req, res) => {
+  const tokenUserId = req.user?.id; // Opcional - pode ser undefined para usuários anônimos
+
   try {
     const { usuarioId, personagemId } = req.params;
 
     if (isNaN(Number(usuarioId)) || isNaN(Number(personagemId))) {
       return res.status(400).json({ error: 'Invalid IDs.' });
+    }
+
+    // ✅ VALIDAÇÃO: Se user está autenticado, só pode salvar para SI MESMO
+    if (tokenUserId && parseInt(usuarioId) !== tokenUserId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Não autorizado. Você só pode salvar histórico para sua própria conta.'
+      });
     }
 
     await characterService.saveRecentCharacterService(Number(usuarioId), Number(personagemId));
@@ -133,11 +186,21 @@ export const handleSaveRecentCharacter = async (req, res) => {
 
 // show the 10 most recent characters of a user
 export const handleGetRecentCharacters = async (req, res) => {
+  const tokenUserId = req.user?.id; // Opcional - pode ser undefined para usuários anônimos
+
   try {
     const { usuarioId } = req.params;
 
     if (isNaN(Number(usuarioId))) {
       return res.status(400).json({ error: 'Invalid user ID.' });
+    }
+
+    // ✅ VALIDAÇÃO: Se user está autenticado, só pode ver seus próprios recentes
+    if (tokenUserId && parseInt(usuarioId) !== tokenUserId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Não autorizado. Você só pode ver seu próprio histórico.'
+      });
     }
 
     const personagens = await characterService.getRecentCharactersService(Number(usuarioId));

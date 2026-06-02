@@ -22,7 +22,7 @@ modules/chat_ia/
 
 ## Endpoints
 
-### POST `/chat_ia/:personagemId`
+### POST `/chat/:personagemId`
 Chat com personagem
 
 **Request Body:**
@@ -41,7 +41,7 @@ Chat com personagem
 }
 ```
 
-### GET `/chat_ia/:personagemId/historico`
+### GET `/chat/:personagemId/historico`
 Busca histórico de chat
 
 **Response:**

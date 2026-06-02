@@ -108,7 +108,6 @@ export const createCharacter = async (person) => {
     usuario_id,
     usuarioId,
     descricao,
-    feitos,
     obra,
     tipo_personagem,
     bio
@@ -118,8 +117,8 @@ export const createCharacter = async (person) => {
 
   const result = await db.query(
     `INSERT INTO personia2.personagens 
-     (nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuario_id, descricao, feitos, obra, tipo_personagem, bio)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+     (nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuario_id, descricao, obra, tipo_personagem, bio)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      RETURNING *`,
     [
       nome,
@@ -132,7 +131,6 @@ export const createCharacter = async (person) => {
       regras,
       userId,
       descricao,
-      feitos,
       obra,
       tipo_personagem,
       bio

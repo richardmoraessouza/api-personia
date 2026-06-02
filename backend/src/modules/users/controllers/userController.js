@@ -1,21 +1,5 @@
 import * as userService from "../services/userService.js";
 
-// export const getUsuario = async (req, res) => {
-//   const { id } = req.params;
-
-//   try {
-//     const user = await userService.getUsuario(id);
-//     return res.status(200).json(user);
-
-//   } catch (err) {
-//     console.error("Error searching user:", err);
-
-//     return res.status(err.statusCode || 500).json({
-//       error: err.message || "Internal server error while searching profile."
-//     });
-//   }
-// };
-
 // Search user by ID
 export const getUserById = async (req, res) => {
   const { id } = req.params;
@@ -83,9 +67,9 @@ export const getOtherUser = async (req, res) => {
 export const editProfile = async (req, res) => {
 
   try {
-    const { id } = req.params;
+    const { usuarioId } = req.params;
 
-    const updateProfile = await userService.editProfileService(id, req.body);
+    const updateProfile = await userService.editProfileService(usuarioId, req.body);
 
     return res.status(200).json({
       success: true,

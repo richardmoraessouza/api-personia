@@ -11,7 +11,7 @@ const pool = new Pool({
   user: process.env.PGUSER,
   password: process.env.PGPASSWORD,
   database: process.env.PGDATABASE,
-  ssl: { rejectUnauthorized: false } 
+  ssl: { rejectUnauthorized: true } 
 });
 
 // When the app starts we can create some helpful indexes if they don't

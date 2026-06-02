@@ -1,5 +1,6 @@
 import express from 'express';
 import { verifyToken } from '../../../middleware/verifyToken.js';
+import { validateRegister, validateLogin } from '../../../middleware/inputValidators.js';
 
 import {
   addUser, loginUser, searchByGmail
@@ -10,12 +11,12 @@ const router = express.Router();
 // ============================
 // REGISTER - Create new user account
 // ============================
-router.post('/register', addUser);
+router.post('/register', validateRegister, addUser);
 
 // ============================
 // LOGIN - Authenticate user with email
 // ============================
-router.post('/login', loginUser);
+router.post('/login', validateLogin, loginUser);
 
 // ============================
 // SEARCH BY EMAIL - Get user public data

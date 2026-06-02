@@ -27,7 +27,7 @@ router.get('/other-user/:id', getOtherUser);
 // ============================
 // EDIT PROFILE - Update user profile information
 // ============================
-router.put('/edit-profile/:id', verifyToken, editProfile);
+router.put('/edit-profile/:usuarioId', verifyToken, editProfile);
 
 // ============================
 // GET OTHER USER NAME - Get another user's name
