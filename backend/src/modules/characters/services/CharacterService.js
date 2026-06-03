@@ -42,7 +42,8 @@ export const getCharactersSearchService = async (nomePersonagem) => {
   );
 };
 
-// Update character by ID and clear cache
+// ─── ARRUMADO: UPDATE CIRÚRGICO ──────────────────────────────────────────
+// Update character by ID and clear ONLY its specific cache
 export const updateCharacterService = async (id, data) => {
   const figurinhas = Array.isArray(data.figurinhas)
     ? data.figurinhas.filter(Boolean)
@@ -57,11 +58,15 @@ export const updateCharacterService = async (id, data) => {
     throw new Error(PERSONAGEM_RULES.PERSONAGEM_NAO_ENCONTRADO_ERROR);
   }
 
-  // Invalida caches relacionados
-  await cacheService.cacheInvalidatePattern('character:*');
+  // Em vez de deletar TUDO com 'character:*', deleta só o que mudou:
+  await cacheService.cacheDel(`character:id:${id}`); 
+  
+  // Limpa também a primeira página do explore global, pois os dados dele mudaram lá
+  await cacheService.cacheDel('character:explore:1:50');
   
   return personagemAtualizado;
 };
+// ─────────────────────────────────────────────────────────────────────────
 
 // Get all characters (explore)
 export const getCharactersService = async (page = 1, limit = 50) => {
@@ -85,19 +90,27 @@ export const getPersonCreatedByUserService = async (id) => {
   );
 };
 
+// ─── ARRUMADO: CRIAÇÃO CIRÚRGICA ─────────────────────────────────────────
 // Create new character
 export const createCharacterService = async (data) => {
-  const personagemCriado = await personRepository.createCharacter(data);
+  const personajeCriado = await personRepository.createCharacter(data);
   
-  if (!personagemCriado) {
+  if (!personajeCriado) {
     throw new Error('ERRO_AO_CRIAR_PERSONAGEM');
   }
 
-  // Invalida caches ao criar novo personagem
-  await cacheService.cacheInvalidatePattern('character:*');
+  // Quando um bot novo nasce, não precisamos quebrar o cache de busca de termos antigos.
+  // Limpamos apenas o cache do feed da primeira página para ele aparecer no topo do Explore.
+  await cacheService.cacheDel('character:explore:1:50');
   
-  return personagemCriado;
+  // Se o criador tiver cache da lista de bots dele, limpa para atualizar a dashboard dele
+  if (data.usuario_id) {
+    await cacheService.cacheDel(`character:user:${data.usuario_id}`);
+  }
+  
+  return personajeCriado;
 };
+// ─────────────────────────────────────────────────────────────────────────
 
 // Service to save recent character interaction
 export const saveRecentCharacterService = async (usuarioId, personagemId) => {
@@ -127,16 +140,14 @@ export const getRecentCharactersService = async (usuarioId) => {
   );
 };
 
-// UNIFIED FUNCTION: Register unique character view
+// Service to register view counter
 export const registerUniqueViewService = async (usuarioId, personajeId) => {
   if (!usuarioId || !personajeId) {
     throw new Error('INVALID_PARAMETERS');
   }
 
-  // 1. Try to register view history in database
   const isFirstTime = await personRepository.registerViewHistory(usuarioId, personajeId);
 
-  // 2. If first time user viewing, increment +1 to view counter
   if (isFirstTime === 1) {
     await personRepository.incrementViews(personajeId); 
     

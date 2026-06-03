@@ -1,13 +1,18 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import helmet from "helmet";
+import csrf from "csurf";
+import session from "express-session";
+import { RedisStore } from "connect-redis";
 import userRouter from "./modules/users/routes/userRouter.js"
 import characterRouter from "./modules/characters/routes/characterRouter.js";
 import authRouter from "./modules/auth/routes/authRouter.js";
 import socialRouter from "./modules/social/routes/socialRouter.js";
 import chatRouter from "./modules/chat/routes/chatRouter.js";
 import discoveryRouter from "./modules/discovery/routes/discoveryRouter.js";
-import { initializeRedis } from "./config/redis.js";
+import ratingsRouter from "./modules/ratings/routes/ratingsRouter.js";
+import { initializeRedis, getRedisClient } from "./config/redis.js";
 
 dotenv.config();
 
@@ -26,7 +31,7 @@ const PORT = process.env.PORT || 3001;
 // ==========================================
 // CONFIGURAÇÃO DE CORS RESTRITIVO (VIA .ENV)
 // ==========================================
-// Lê do .env: CORS_ORIGINS=http://localhost:5173,https://personia.vercel.app
+
 const corsOriginsEnv = process.env.CORS_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:5173';
 const allowedOrigins = corsOriginsEnv
   .split(',')
@@ -40,6 +45,65 @@ if (allowedOrigins.length === 0) {
 
 console.log(`✅ CORS configurado para: ${allowedOrigins.join(', ')}`);
 
+// ==========================================
+// SEGURANÇA: HELMET.JS (Headers de Segurança HTTP)
+// ==========================================
+// ✅ NOVO: Proteção contra ataques comuns (XSS, Clickjacking, etc)
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://generativelanguage.googleapis.com"],
+    },
+  },
+  hsts: { 
+    maxAge: 31536000,      // 1 ano
+    includeSubDomains: true,
+    preload: true
+  },
+  frameguard: { 
+    action: 'deny'         // Previne clickjacking
+  },
+  noSniff: true,           // Previne MIME sniffing
+  xssFilter: true,         // Proteção XSS (browsers antigos)
+  referrerPolicy: { 
+    policy: 'strict-origin-when-cross-origin' 
+  }
+}));
+
+// ==========================================
+// SEGURANÇA: SESSION + CSRF PROTECTION
+// ==========================================
+// ✅ NOVO: Sessão com Redis + CSRF token
+const redisClient = getRedisClient();
+
+app.use(session({
+  store: new RedisStore({ client: redisClient }),
+  secret: process.env.SESSION_SECRET || 'change-me-in-production-now',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',  // HTTPS only em produção
+    httpOnly: true,                                   // Não acessível via JavaScript
+    sameSite: 'strict',                              // CSRF protection
+    maxAge: 24 * 60 * 60 * 1000                      // 24 horas
+  }
+}));
+
+// ✅ NOVO: Middleware CSRF - protege routes POST/PUT/DELETE
+const csrfProtection = csrf({ cookie: false });  // Usa session, não cookies
+
+// ✅ NOVO: Endpoint para obter token CSRF (GET - seguro)
+app.get('/csrf-token', csrfProtection, (req, res) => {
+  res.json({ 
+    csrfToken: req.csrfToken(),
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.use(cors({
   origin: (origin, callback) => {
     // Permite requisições sem origin (como mobile apps ou server-to-server)
@@ -52,7 +116,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Access-Token']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Access-Token', 'X-CSRF-Token']
 }));
 
 app.use(express.json({ limit: '50mb' }));
@@ -65,17 +129,46 @@ app.use("/auth", authRouter);
 app.use("/social", socialRouter);
 app.use("/chat", chatRouter);
 app.use("/discovery", discoveryRouter);
+app.use('/ratings', ratingsRouter);
 
 // ==========================================
 // MIDDLEWARE DE ERRO GLOBAL
 // ==========================================
+// ✅ MELHORADO: Não expõe detalhes de erro em produção
 app.use((err, req, res, next) => {
-  console.error('❌ Erro não tratado:', err.message);
-  res.status(500).json({ 
-    erro: 'Erro interno do servidor',
-    mensagem: process.env.NODE_ENV === 'development' ? err.message : undefined
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  
+  // Log do erro (sempre, para debug interno)
+  if (!isDevelopment) {
+    // Em produção: log simplificado
+    console.error('❌ Erro:', {
+      code: err.code || 'UNKNOWN',
+      timestamp: new Date().toISOString(),
+      path: req.path
+    });
+  } else {
+    // Em desenvolvimento: log completo
+    console.error('❌ Erro não tratado:', err);
+  }
+  
+  // CSRF token errors
+  if (err.code === 'EBADCSRFTOKEN') {
+    return res.status(403).json({ 
+      erro: 'CSRF validation failed',
+      code: 'EBADCSRFTOKEN'
+    });
+  }
+  
+  // Response
+  res.status(err.status || 500).json({ 
+    erro: isDevelopment ? err.message : 'Erro interno do servidor',
+    code: err.code || 'INTERNAL_SERVER_ERROR',
+    ...(isDevelopment && { stack: err.stack })  // Stack trace apenas em desenvolvimento
   });
 });
+
+// ✅ NOVO: Exportar CSRF protection para rotas que precisam
+export { csrfProtection };
 
 // ==========================================
 // INICIALIZAÇÃO DO SERVIDOR
@@ -90,8 +183,14 @@ async function startServer() {
     
     // Iniciar servidor HTTP
     app.listen(PORT, () => {
+      const environment = process.env.NODE_ENV || 'development';
       console.log(`✅ Servidor rodando em http://localhost:${PORT}`);
-      console.log(`📍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`📍 Ambiente: ${environment}`);
+      console.log(`🔒 Segurança: Helmet.js ativado, CSRF protegido, Session com Redis`);
+      
+      if (environment === 'production') {
+        console.log('🚀 MODO PRODUÇÃO - Erros detalhados desabilitados');
+      }
     });
   } catch (err) {
     console.error('❌ Erro fatal ao inicializar servidor:', err);

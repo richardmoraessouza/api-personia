@@ -1,5 +1,7 @@
 import db from '../../../config/db.js';
 import redisClient from '../../../config/redis.js';
+import { handleAutoClassification } from '../../ratings/services/ratingsService.js';
+
 
 // Get characters by user ID
 export const getCharactersByUsuarioId = async (usuarioId) => {
@@ -34,111 +36,75 @@ export const searchCharactersByName = async (nomePersonagem) => {
   return result.rows;
 };
 
-// Update character by ID
+// Update character by ID and re-run AI classification
 export const updateCharacterById = async (id, person) => {
   const {
-    nome,
-    bio,
-    genero,
-    personalidade,
-    comportamento,
-    estilo,
-    historia,
-    fotoia,
-    regras,
-    descricao,
-    obra,
-    tipo_personagem,
-    figurinhas
+    nome, bio, genero, personalidade, comportamento, estilo, 
+    historia, fotoia, regras, descricao, obra, tipo_personagem, figurinhas
   } = person;
 
   const query = `
     UPDATE personia2.personagens
     SET
-      nome = $1,
-      bio = $2,
-      genero = $3,
-      personalidade = $4,
-      comportamento = $5,
-      estilo = $6,
-      historia = $7,
-      fotoia = $8,
-      regras = $9,
-      descricao = $10,
-      obra = $11,
-      tipo_personagem = $12,
+      nome = $1, bio = $2, genero = $3, personalidade = $4,
+      comportamento = $5, estilo = $6, historia = $7, fotoia = $8,
+      regras = $9, descricao = $10, obra = $11, tipo_personagem = $12,
       figurinhas = $13
     WHERE id = $14
     RETURNING *
   `;
 
   const values = [
-    nome ?? null,
-    bio ?? null,
-    genero ?? null,
-    personalidade ?? null,
-    comportamento ?? null,
-    estilo ?? null,
-    historia ?? null,
-    fotoia ?? null,
-    regras ?? null,
-    descricao ?? null,
-    obra ?? null,
-    tipo_personagem ?? null,
-    figurinhas ?? null,
-    id
+    nome ?? null, bio ?? null, genero ?? null, personalidade ?? null,
+    comportamento ?? null, estilo ?? null, historia ?? null, fotoia ?? null,
+    regras ?? null, descricao ?? null, obra ?? null, tipo_personagem ?? null,
+    figurinhas ?? null, id
   ];
 
   const result = await db.query(query, values);
+  const updatedCharacter = result.rows[0];
 
-  return result.rows[0] || null;
+ // --- RECLASSIFICAÇÃO AUTOMÁTICA ---
+  if (updatedCharacter && updatedCharacter.id) {
+    console.log(`[IA Autônoma] Detectada atualização no bot "${nome}". Reclassificando tags...`);
+    
+    handleAutoClassification(updatedCharacter.id, updatedCharacter)
+      .then(tagsIds => {
+        console.log(`[IA Autônoma] Bot "${nome}" reclassificado. Novos IDs:`, tagsIds);
+      })
+      .catch(err => {
+        console.error("[IA Autônoma] Falha na reclassificação:", err.message);
+      });
+  }
+
+  return updatedCharacter;
 };
 
 // Create new character
 export const createCharacter = async (person) => {
   const {
-    nome,
-    genero,
-    personalidade,
-    comportamento,
-    estilo,
-    historia,
-    fotoia,
-    regras,
-    usuario_id,
-    usuarioId,
-    descricao,
-    obra,
-    tipo_personagem,
-    bio
+    nome, genero, personalidade, comportamento, estilo, historia, 
+    fotoia, regras, usuario_id, usuarioId, descricao, obra, bio
   } = person;
-
   const userId = usuario_id || usuarioId;
 
   const result = await db.query(
     `INSERT INTO personia2.personagens 
-     (nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuario_id, descricao, obra, tipo_personagem, bio)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-     RETURNING *`,
-    [
-      nome,
-      genero,
-      personalidade,
-      comportamento,
-      estilo,
-      historia,
-      fotoia,
-      regras,
-      userId,
-      descricao,
-      obra,
-      tipo_personagem,
-      bio
-    ]
+       (nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuario_id, descricao, obra, bio)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       RETURNING *`,
+    [nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, userId, descricao, obra, bio]
   );
 
-  return result.rows[0];
-}
+  const newCharacter = result.rows[0];
+
+  if (newCharacter && newCharacter.id) {
+    handleAutoClassification(newCharacter.id, person)
+      .catch(err => console.error("[IA Autônoma] Falha:", err.message));
+  }
+
+  return newCharacter;
+};
 
 // Save recent character interaction - keeps only last 10 per user
 export const saveRecentCharacter = async (usuarioId, personagemId) => {
@@ -202,27 +168,29 @@ export const registerViewHistory = async (userId, characterId) => {
 
 // Increment views column in main character table
 export const incrementViews = async (characterId) => {
-  const query = `
-    UPDATE personia2.personagens 
-    SET visualizacoes = visualizacoes + 1 
-    WHERE id = $1;
-  `;
-  await db.query(query, [characterId]);
+  // Incremento total
+  await db.query(`UPDATE personia2.personagens SET visualizacoes = visualizacoes + 1 WHERE id = $1`, [characterId]);
+  
+  // Incremento semanal (Performance otimizada)
+  await db.query(`
+    INSERT INTO personia2.weekly_views (personagem_id, view_count)
+    VALUES ($1, 1)
+    ON CONFLICT (personagem_id) 
+    DO UPDATE SET view_count = personia2.weekly_views.view_count + 1
+  `, [characterId]);
 };
 
 //search for the 10 most popular characters of the week based on recent views.
 export const getPopularWeekCharacters = async () => {
   const query = `
-    SELECT id, nome, fotoia, tipo_personagem, usuario_id, bio, descricao, visualizacoes
-    FROM personia2.personagens
-    WHERE fotoia IS NOT NULL 
-      AND fotoia <> '/semPerfil.jpg'
-      AND bio IS NOT NULL
-      AND criado_em >= NOW() - INTERVAL '7 days'
-    ORDER BY visualizacoes DESC, criado_em DESC
+    SELECT p.id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao, wv.view_count
+    FROM personia2.personagens p
+    JOIN personia2.weekly_views wv ON p.id = wv.personagem_id
+    WHERE p.fotoia IS NOT NULL 
+      AND p.fotoia <> '/semPerfil.jpg'
+    ORDER BY wv.view_count DESC
     LIMIT 10
   `;
-  
   const result = await db.query(query);
   return result.rows;
 };

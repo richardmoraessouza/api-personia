@@ -56,4 +56,8 @@ export function isRedisConnected() {
   return isRedisReady;
 }
 
+export function getRedisClient() {
+  return redisClient;
+}
+
 export default redisClient;
