@@ -3,9 +3,20 @@ import * as followersService from '../services/followersService.js';
 // ============================
 // FOLLOW - Add follower relationship (POST)
 // ============================
+// ✅ CORRIGIDO: Usa req.user.id do JWT (autenticado) em vez de body
 export async function followUser(req, res) {
     try {
-        const { seguidor_id, seguido_id } = req.body;
+        // 🔒 SEGURANÇA: seguidor_id vem do JWT, não do body
+        const seguidor_id = req.user.id;
+        const { seguido_id } = req.body;
+
+        if (!seguido_id) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'seguido_id é obrigatório no body' 
+            });
+        }
+
         await followersService.followUserService(seguidor_id, seguido_id);
         return res.status(201).json({ success: true, message: 'Following user' });
     } catch (err) {
@@ -20,9 +31,20 @@ export async function followUser(req, res) {
 // ============================
 // UNFOLLOW - Remove follower relationship (DELETE)
 // ============================
+// ✅ CORRIGIDO: Usa req.user.id do JWT (autenticado) em vez de body
 export async function unfollowUser(req, res) {
     try {
-        const { seguidor_id, seguido_id } = req.body;
+        // 🔒 SEGURANÇA: seguidor_id vem do JWT, não do body
+        const seguidor_id = req.user.id;
+        const { seguido_id } = req.body;
+
+        if (!seguido_id) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'seguido_id é obrigatório no body' 
+            });
+        }
+
         await followersService.unfollowUserService(seguidor_id, seguido_id);
         return res.status(200).json({ success: true, message: 'Unfollowed user' });
     } catch (err) {

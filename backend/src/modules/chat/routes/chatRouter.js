@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as chatController from '../controllers/chatController.js';
 import { verifyToken } from '../../../middleware/verifyToken.js';
+import { chatLimiter } from '../../../middleware/rateLimiter.js';
 import { validateChatMessage, validateCharacterId } from '../../../middleware/inputValidators.js';
 
 const router = Router();
@@ -8,8 +9,9 @@ const router = Router();
 /**
  * POST /chat_ia/:personagemId
  * Chat with character
+ * ✅ PROTEGIDO: Rate limiting para prevenir DoS e custos excessivos
  */
-router.post('/:personagemId', validateChatMessage, chatController.chatComPersonagem);
+router.post('/:personagemId', chatLimiter, validateChatMessage, chatController.chatComPersonagem);
 
 /**
  * GET /chat_ia/:personagemId/historico

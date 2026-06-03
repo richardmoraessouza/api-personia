@@ -1,4 +1,18 @@
 import { body, param, query, validationResult } from 'express-validator';
+import sanitizeHtml from 'sanitize-html';
+
+/**
+ * ✅ NOVO: Sanitizar HTML/scripts em campos de texto
+ * Previne XSS (Cross-Site Scripting)
+ */
+const sanitizeText = (text) => {
+  if (!text) return text;
+  return sanitizeHtml(text, {
+    allowedTags: [],  // Não permite HTML tags
+    allowedAttributes: {},
+    disallowedTagsMode: 'discard'
+  }).trim();
+};
 
 /**
  * Middleware para tratar erros de validação
@@ -30,7 +44,8 @@ export const validateRegister = [
     .isEmail()
     .withMessage('Email inválido')
     .isLength({ max: 255 })
-    .withMessage('Email muito longo (máximo 255 caracteres)'),
+    .withMessage('Email muito longo (máximo 255 caracteres)')
+    .normalizeEmail(),  // ✅ Normaliza email (remove espaços, converte para lowercase)
   
   body('nome')
     .trim()
@@ -38,6 +53,7 @@ export const validateRegister = [
     .withMessage('Nome é obrigatório')
     .isLength({ min: 1, max: 100 })
     .withMessage('Nome deve ter entre 1 e 100 caracteres')
+    .customSanitizer(value => sanitizeText(value))  // ✅ Remove HTML/scripts
     .matches(/^[a-zA-Z0-9\s\-àáäâèéëêìíïîòóöôùúüûñç]+$/i)
     .withMessage('Nome contém caracteres inválidos'),
   
@@ -46,11 +62,11 @@ export const validateRegister = [
     .trim()
     .custom((value) => {
       if (!value) return true; // Campo opcional
-      // Aceita URLs HTTP/HTTPS ou Data URLs (base64)
-      const isUrl = /^https?:\/\/.+/.test(value);
+      // ✅ Apenas HTTPS (mais seguro)
+      const isHttpsUrl = /^https:\/\/.+/.test(value);
       const isDataUrl = /^data:image\/\w+;base64,.+/.test(value);
-      if (!isUrl && !isDataUrl) {
-        throw new Error('URL da imagem inválida (use HTTP/HTTPS ou Base64)');
+      if (!isHttpsUrl && !isDataUrl) {
+        throw new Error('URL da imagem inválida (use HTTPS ou Base64)');
       }
       return true;
     }),
@@ -111,13 +127,15 @@ export const validateCreateCharacter = [
     .notEmpty()
     .withMessage('Nome é obrigatório')
     .isLength({ min: 1, max: 100 })
-    .withMessage('Nome deve ter entre 1 e 100 caracteres'),
+    .withMessage('Nome deve ter entre 1 e 100 caracteres')
+    .customSanitizer(value => sanitizeText(value)),  // ✅ Remove HTML/scripts
   
   body('bio')
     .optional()
     .trim()
     .isLength({ max: 500 })
-    .withMessage('Bio deve ter no máximo 500 caracteres'),
+    .withMessage('Bio deve ter no máximo 500 caracteres')
+    .customSanitizer(value => sanitizeText(value)),  // ✅ Remove HTML/scripts
   
   body('tipo_personagem')
     .trim()
@@ -130,24 +148,26 @@ export const validateCreateCharacter = [
     .optional()
     .trim()
     .isLength({ max: 1000 })
-    .withMessage('Personalidade deve ter no máximo 1000 caracteres'),
+    .withMessage('Personalidade deve ter no máximo 1000 caracteres')
+    .customSanitizer(value => sanitizeText(value)),  // ✅ Remove HTML/scripts
   
   body('comportamento')
     .optional()
     .trim()
     .isLength({ max: 1000 })
-    .withMessage('Comportamento deve ter no máximo 1000 caracteres'),
+    .withMessage('Comportamento deve ter no máximo 1000 caracteres')
+    .customSanitizer(value => sanitizeText(value)),  // ✅ Remove HTML/scripts
   
   body('fotoia')
     .optional()
     .trim()
     .custom((value) => {
       if (!value) return true; // Campo opcional
-      // Aceita URLs HTTP/HTTPS ou Data URLs (base64)
-      const isUrl = /^https?:\/\/.+/.test(value);
+      // ✅ Apenas HTTPS (mais seguro)
+      const isHttpsUrl = /^https:\/\/.+/.test(value);
       const isDataUrl = /^data:image\/\w+;base64,.+/.test(value);
-      if (!isUrl && !isDataUrl) {
-        throw new Error('URL da foto inválida (use HTTP/HTTPS ou Base64)');
+      if (!isHttpsUrl && !isDataUrl) {
+        throw new Error('URL da foto inválida (use HTTPS ou Base64)');
       }
       return true;
     }),
@@ -217,7 +237,8 @@ export const validateChatMessage = [
     .notEmpty()
     .withMessage('Mensagem não pode ser vazia')
     .isLength({ min: 1, max: 5000 })
-    .withMessage('Mensagem deve ter entre 1 e 5000 caracteres'),
+    .withMessage('Mensagem deve ter entre 1 e 5000 caracteres')
+    .customSanitizer(value => sanitizeText(value)),  // ✅ Remove HTML/scripts
   
   handleValidationErrors
 ];
