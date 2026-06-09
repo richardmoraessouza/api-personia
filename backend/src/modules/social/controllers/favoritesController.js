@@ -1,4 +1,5 @@
 import * as socialService from "../services/favoritesService.js";
+import { updateTagScore } from '../../discovery/repositories/discoveryRepository.js';
 
 // =========================
 // TOGGLE FAVORITE - Add or remove favorite
@@ -13,6 +14,9 @@ export const toggleFavorites = async (req, res) => {
       Number(usuarioId),
       Number(personagem_id)
     );
+
+    // Atualiza o score das tags do personagem
+    await updateTagScore(usuarioId, personagem_id, 'favorite');
 
     return res.status(result.status).json(result);
 

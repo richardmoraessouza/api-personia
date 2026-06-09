@@ -39,38 +39,42 @@ export const searchCharactersByName = async (nomePersonagem) => {
 // Update character by ID and re-run AI classification
 export const updateCharacterById = async (id, person) => {
   const {
-    nome, bio, genero, personalidade, comportamento, estilo, 
-    historia, fotoia, regras, descricao, obra, tipo_personagem, figurinhas
+    nome, bio, genero, personalidade, historia, fotoia, regras, 
+    descricao, obra, tipo_personagem, conversation_style, 
+    aparencia, gostos, desgostos, objetivos, primeiramensagem, 
+    relacaousuario, cenario
   } = person;
 
   const query = `
     UPDATE personia2.personagens
     SET
       nome = $1, bio = $2, genero = $3, personalidade = $4,
-      comportamento = $5, estilo = $6, historia = $7, fotoia = $8,
-      regras = $9, descricao = $10, obra = $11, tipo_personagem = $12,
-      figurinhas = $13
-    WHERE id = $14
+      historia = $5, fotoia = $6, regras = $7, descricao = $8,
+      obra = $9, tipo_personagem = $10, conversation_style = $11,
+      aparencia = $12, gostos = $13, desgostos = $14, objetivos = $15,
+      primeiramensagem = $16, relacaousuario = $17, cenario = $18
+    WHERE id = $19
     RETURNING *
   `;
 
   const values = [
     nome ?? null, bio ?? null, genero ?? null, personalidade ?? null,
-    comportamento ?? null, estilo ?? null, historia ?? null, fotoia ?? null,
-    regras ?? null, descricao ?? null, obra ?? null, tipo_personagem ?? null,
-    figurinhas ?? null, id
+    historia ?? null, fotoia ?? null, regras ?? null, descricao ?? null,
+    obra ?? null, tipo_personagem ?? null, conversation_style ?? null,
+    aparencia ?? null, gostos ?? null, desgostos ?? null, objetivos ?? null,
+    primeiramensagem ?? null, relacaousuario ?? null, cenario ?? null, id
   ];
 
   const result = await db.query(query, values);
   const updatedCharacter = result.rows[0];
 
- // --- RECLASSIFICAÇÃO AUTOMÁTICA ---
+  // --- RECLASSIFICAÇÃO AUTOMÁTICA ---
   if (updatedCharacter && updatedCharacter.id) {
     console.log(`[IA Autônoma] Detectada atualização no bot "${nome}". Reclassificando tags...`);
     
     handleAutoClassification(updatedCharacter.id, updatedCharacter)
       .then(tagsIds => {
-        console.log(`[IA Autônoma] Bot "${nome}" reclassificado. Novos IDs:`, tagsIds);
+        console.log(`[IA Autônoma] Bot "${nome}" reclassificado.`);
       })
       .catch(err => {
         console.error("[IA Autônoma] Falha na reclassificação:", err.message);
@@ -82,20 +86,35 @@ export const updateCharacterById = async (id, person) => {
 
 // Create new character
 export const createCharacter = async (person) => {
+  // Desestruturando todos os campos novos do objeto 'person'
   const {
-    nome, genero, personalidade, comportamento, estilo, historia, 
-    fotoia, regras, usuario_id, usuarioId, descricao, obra, bio
+    nome, genero, personalidade, historia, fotoia, regras, 
+    usuario_id, usuarioId, descricao, obra, bio, 
+    conversation_style, aparencia, gostos, desgostos, 
+    objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem
   } = person;
+  
   const userId = usuario_id || usuarioId;
 
-  const result = await db.query(
-    `INSERT INTO personia2.personagens 
-       (nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, usuario_id, descricao, obra, bio)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-       RETURNING *`,
-    [nome, genero, personalidade, comportamento, estilo, historia, fotoia, regras, userId, descricao, obra, bio]
-  );
+  // SQL atualizado com todos os novos campos
+  const query = `
+    INSERT INTO personia2.personagens 
+    (
+      nome, genero, personalidade, historia, fotoia, regras, usuario_id, 
+      descricao, obra, bio, conversation_style, aparencia, gostos, 
+      desgostos, objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+    RETURNING *
+  `;
 
+  const values = [
+    nome, genero, personalidade, historia, fotoia, regras, userId, 
+    descricao, obra, bio, conversation_style, aparencia, gostos, 
+    desgostos, objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem
+  ];
+
+  const result = await db.query(query, values);
   const newCharacter = result.rows[0];
 
   if (newCharacter && newCharacter.id) {

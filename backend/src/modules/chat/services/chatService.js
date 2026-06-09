@@ -43,7 +43,9 @@ function buildGeminiContents(systemPrompt, userMessage, history) {
  */
 function extractGeminiResponse(response) {
   try {
-    return response.candidates?.[0]?.content?.parts?.[0]?.text ||
+    // @google/genai novo retorna assim:
+    return response?.text ||
+           response?.candidates?.[0]?.content?.parts?.[0]?.text ||
            CHAT_RULES.DEFAULT_ERROR_RESPONSE;
   } catch (err) {
     console.error('Error extracting Gemini response:', err);
@@ -62,7 +64,7 @@ export async function chatComPersonagemService(userId, personagemId, message) {
   }
 
   // Busca personagem
-  const personagem = await chatRepository.getPersonagemById(personagemId);
+  const personagem = await chatRepository.getCharacterById(personagemId);
   if (!personagem) {
     throw new Error('Character not found');
   }

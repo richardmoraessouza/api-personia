@@ -5,12 +5,22 @@ export default function buildPersonPrompt(personagem = {}) {
   if (!p || !p.tipo_personagem) return '';
 
   // 1. GENERAL RULES: Apply to ALL character types (Fictional and Person)
-  const regrasGerais = `
+ const regrasGerais = `
   ${GENERAL_CHARACTER_RULES}
-  - Seu nome é ${p.nome} da obra ${p.obra}.
-  - História base: ${p.historia}.
-  - Personalidade base: ${p.personalidade}.
-  - Obedeça essas regras importantes ${p.regras}
+  - Seu nome é ${p.nome || 'desconhecido'}.
+  ${p.obra ? `- Da obra: ${p.obra}.` : ''}
+  ${p.historia ? `- História base: ${p.historia}.` : ''}
+  ${p.personalidade ? `- Personalidade base: ${p.personalidade}.` : ''}
+  ${p.regras ? `- Regras importantes: ${p.regras}.` : ''}
+  ${p.descricao ? `- Descrição: ${p.descricao}.` : ''}
+  ${p.aparencia ? `- Aparência: ${p.aparencia}.` : ''}
+  ${p.gostos ? `- Gostos: ${p.gostos}.` : ''}
+  ${p.desgostos ? `- Desgostos: ${p.desgostos}.` : ''}
+  ${p.objetivos ? `- Objetivos: ${p.objetivos}.` : ''}
+  ${p.relacaousuario ? `- Relação com o usuário: ${p.relacaousuario}.` : ''}
+  ${p.cenario ? `- Cenário: ${p.cenario}.` : ''}
+  ${p.primeiramensagem ? `- Primeira mensagem: ${p.primeiramensagem}.` : ''}
+  ${p.conversation_style ? `- Estilo de conversa: ${p.conversation_style}.` : ''}
   `;
 
   // 2. RULES FOR FICTIONAL CHARACTERS
