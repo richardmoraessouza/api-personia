@@ -11,7 +11,7 @@ const router = Router();
  * Chat with character
  * ✅ PROTEGIDO: Rate limiting para prevenir DoS e custos excessivos
  */
-router.post('/:personagemId', chatLimiter, validateChatMessage, chatController.chatComPersonagem);
+router.post('/chat/:personagemId', chatLimiter, validateChatMessage, chatController.chatComPersonagem);
 
 /**
  * GET /chat_ia/:personagemId/historico

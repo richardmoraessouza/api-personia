@@ -6,7 +6,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 seconds
 /**
  * Search character by in database or caching
  */
-export async function getPersonagemById(id) {
+export async function getCharacterById(id) {
   const now = Date.now();
 
   // Check cache
@@ -20,12 +20,15 @@ export async function getPersonagemById(id) {
 
   // Search in database
   const result = await db.query(
-    `SELECT 
-       id, nome, obra, genero, personalidade, comportamento, 
-       estilo, historia, regras, tipo_personagem, fotoia, bio
-     FROM personia2.personagens 
-     WHERE id = $1`,
-    [id]
+  `SELECT 
+     id, nome, obra, genero, personalidade,
+     historia, regras, tipo_personagem, fotoia, bio,
+     descricao, aparencia, gostos, desgostos, objetivos,
+     primeiramensagem, relacaousuario, cenario,
+     conversation_style
+   FROM personia2.personagens 
+   WHERE id = $1`,
+  [id]
   );
 
   if (result.rows.length === 0) return null;
