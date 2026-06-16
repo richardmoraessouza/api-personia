@@ -46,7 +46,8 @@ export const findUserByGmail = async (gmail) => {
       nome,
       gmail,
       foto_perfil,
-      descricao
+      descricao,
+      frame
     FROM personia2.usuarios
     WHERE gmail = $1
   `;
@@ -68,7 +69,8 @@ export const findUserPublicByGmail = async (gmail) => {
     SELECT
       gmail,
       nome,
-      foto_perfil
+      foto_perfil,
+      frame
     FROM personia2.usuarios
     WHERE gmail = $1
   `;

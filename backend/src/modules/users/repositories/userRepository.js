@@ -19,21 +19,23 @@ export const findUserById = async (id) => {
     return result.rows[0];
 }
 
-// Get user name by ID
+// Get user profile data by ID (used on session restore)
 export const findNameUserById = async (userId) => {
     const result = await db.query(`
-        SELECT nome FROM personia2.usuarios WHERE id = $1
+        SELECT nome, foto_perfil, descricao, frame
+        FROM personia2.usuarios
+        WHERE id = $1
         `, [userId]);
     
     if (result.rows.length === 0) return null;
 
-    return result.rows[0].nome;
+    return result.rows[0];
 }
 
 // Get another user's public profile data
 export const findDateOtherUserByid = async (id) => {
     const result = await db.query(`
-        SELECT id, nome, foto_perfil, descricao
+        SELECT id, nome, foto_perfil, descricao, frame
         FROM personia2.usuarios
         WHERE id = $1
     `, [id]);
@@ -50,7 +52,7 @@ export const updateProfileUserById = async (id, {nome, foto_perfil, descricao}) 
             foto_perfil = COALESCE($2::text, foto_perfil),
             descricao = COALESCE($3::text, descricao)
         WHERE id = $4
-    `;
+    `; // <-- Tirei a vírgula que estava depois do "descricao)"
 
     await db.query(updateQuery, [nome, foto_perfil, descricao, id]);
 
@@ -63,6 +65,18 @@ export const updateProfileUserById = async (id, {nome, foto_perfil, descricao}) 
     const result = await db.query(selectQuery, [id]);
 
     return result.rows[0] || null;
+}
+
+// update frame user
+export const updateFrameUserById = async (usuarioId, frame) => {
+    const result = await db.query(`
+        UPDATE personia2.usuarios
+        SET frame = NULLIF(TRIM($2::text), '')
+        WHERE id = $1
+        RETURNING frame
+    `, [usuarioId, frame ?? '']);
+
+    return result.rows[0]?.frame ?? null;
 }
 
 // Get another user's name by ID
@@ -85,4 +99,14 @@ export const findNameOtherUser = async (usuarioId) => {
     return {
         nome: result.rows[0].nome || null
     };
+}
+
+// Shows user data in mini profile
+export const findDataMiniProfile = async (usuarioId) => {
+    const result = await db.query(`
+        SELECT id, nome, foto_perfil, descricao, frame, is_online
+        FROM personia2.usuarios
+        WHERE id = $1
+    `, [usuarioId]);
+    return result.rows[0] || null;
 }

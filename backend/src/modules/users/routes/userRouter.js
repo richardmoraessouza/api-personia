@@ -1,5 +1,7 @@
 import { Router } from "express";
-import { getUserById, getNameUser, getOtherUser, editProfile, getNameOtherUser} from "../controllers/userController.js";
+import { getUserById, getNameUser, getOtherUser, 
+        editProfile, getNameOtherUser, getDataMiniProfile, updateFrame
+       } from "../controllers/userController.js";
 import { verifyToken } from "../../../middleware/verifyToken.js";
 
 const router = Router();
@@ -34,6 +36,10 @@ router.put('/edit-profile/:usuarioId', verifyToken, editProfile);
 // ============================
 router.get(`/name-other-user/:usuarioId`, getNameOtherUser);
 
+// Shows user data in mini profile
+router.get(`/mini-profile/:usuarioId`, getDataMiniProfile);
 
+// update frame user
+router.put(`/update-frame/:usuarioId`, verifyToken, updateFrame )
 
 export default router;

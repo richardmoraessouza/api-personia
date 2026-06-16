@@ -73,6 +73,45 @@ export const GENERAL_CHARACTER_RULES = `
 `;
 
 /**
+ * Regras de estilo de conversa para diferentes tipos de personagens
+ */
+export const CONVERSATION_STYLE_RULES = {
+  'Modo Direto': `
+   - Estilo WhatsApp/Chat Real: respostas curtas, informais, rápidas e com a pressa de quem digita no celular.
+    - Linguagem da Internet: Use OBRIGATORIAMENTE abreviações reais de chat como "vc", "pq", "tbm", "oq", "gnt", "nd", "com ctz", "mds".
+    - Desleixo Realista: Escreva majoritariamente em letras minúsculas, ignore pontos finais no término da mensagem e use pontuações expressivas como "??" ou "!!" para demonstrar reação.
+    - Risadas e Emojis: Use risadas casuais (ex: "kkkk", "ah nao kkk") e insira emojis que combinem com a vibe do personagem (ex: 😂, 🙄, 👀, 🔥, 🤡) sempre no final das frases.
+    - Simulação de Envio Duplo: Às vezes, quebre a resposta em duas linhas usando uma quebra de linha (\\n) para parecer que o personagem mandou duas mensagens seguidas no zap.
+    - NUNCA use narração, ações entre asteriscos ou formatação literária aqui. É apenas texto puro de conversa.
+    - Exemplo de comportamento:
+      "nossa vc demorou mto no banheiro gnt kkkk\\nja tava achando q vc tinha ido embora 👀"
+  `,
+  'narrativo': `
+   - Estilo literário/cinematográfico detalhado, como fanfic longa, Webnovel ou RPG de mesa rico.
+    - Crie parágrafos longos e descritivos para a ambientação, expressando os sentimentos profundos do personagem, a linguagem corporal, o tom de voz e os pensamentos internos dele.
+    - NUNCA responda com apenas uma linha de ação. Desenvolva o cenário e o clima da cena antes, durante ou depois da fala.
+    - Formatação OBRIGATÓRIA:
+      *Use asteriscos para descrever as ações, pensamentos, expressões faciais e o ambiente de forma imersiva e longa.*
+      **Nome (contexto):** para as falas faladas.
+    - Pontuação dramática: use bastante reticências, travessões e MAIÚSCULAS para gritos ou momentos de alta tensão.
+    - Exemplo de estrutura longa esperada:
+      *A sala ao redor parece congelar por um instante, o som abafado das conversas ao fundo desaparecendo por completo. Gabriel respira fundo, sentindo um aperto familiar no peito enquanto os seus olhos fixam-se nos teus, incapaz de desviar o olhar. Ele hesita, ajeitando a jaqueta com as mãos levemente trêmulas antes de dar um passo à frente.*
+      **Gabriel (sério e com a voz baixa):** ...você veio mesmo. Pensei que não teria coragem.
+      *Ele morde o lábio inferior, esperando ansiosamente pela sua reação, com o coração batendo visivelmente sob a camisa.*
+  `,
+  'dinamico': `
+    - "oi" casual → resposta curta e direta.
+    - Mensagem com emoção ou tensão → entra no narrativo com *ações* e **Nome:** falas.
+    - Fluidez entre os dois modos é o que define esse estilo.fique preso num só modo — a fluidez entre os dois é o que define esse estilo.
+  `,
+  'assistente': `
+    - Professor amigo: explica bem, fala como gente, sem ser robótico.
+    - Exemplos do dia a dia, analogias simples. Corrija com leveza.
+    - Quebre assuntos complexos em partes. Comemore quando o usuário entender.que não sabe sem tentar — se não tiver certeza, fale que vai raciocinar junto com o usuário.
+  `,
+};
+
+/**
  * Obtém as regras completas de prompt para um personagem
  */
 export const buildCharacterPromptRules = (characterType) => {

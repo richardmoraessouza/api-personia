@@ -103,3 +103,41 @@ export const findNameOtherUser = async (usuarioId) => {
         nome: result.rows[0]?.nome || null
     };
 }
+
+// update frame user
+export const updateFrameService = async (usuarioId, frame) => {
+    const frameUser = await userRepository.updateFrameUserById(usuarioId, frame);
+
+    if (!frameUser) {
+        throw new Error('USUARIO_NAO_ENCONTRADO');
+    }
+
+    await cacheService.cacheDel(`user:miniprofile:${usuarioId}`);
+    await cacheService.cacheDel(`user:name:${usuarioId}`);
+    await cacheService.cacheDel(`followers:${usuarioId}`);
+    await cacheService.cacheDel(`following:${usuarioId}`);
+
+    return frameUser;
+}
+
+// Shows user data in mini profile
+export const getDataMiniProfileService = async (usuarioId) => {
+
+    if (!usuarioId || isNaN(usuarioId)) {
+        throw new Error('ID_INVALIDO');
+    }
+
+    const cacheKey = `user:miniprofile:${usuarioId}`;
+
+    const miniProfile = await cacheService.cacheWithFallback(
+        cacheKey,
+        () => userRepository.findDataMiniProfile(usuarioId),
+        CACHE_TTL.USER_PROFILE
+    );
+
+    if (!miniProfile) {
+        throw new Error('USER_NOT_FOUND');
+    }
+
+    return miniProfile;
+}

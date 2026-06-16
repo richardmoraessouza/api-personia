@@ -1,4 +1,4 @@
-import * as personRepository from '../repositories/personRepository.js';
+import * as personRepository from '../repositories/characterRepository.js';
 import * as cacheService from '../../../services/cacheService.js';
 import { PERSONAGEM_RULES } from '../../../rules/personagemRules.js';
 
@@ -42,31 +42,30 @@ export const getCharactersSearchService = async (nomePersonagem) => {
   );
 };
 
-// ─── ARRUMADO: UPDATE CIRÚRGICO ──────────────────────────────────────────
 // Update character by ID and clear ONLY its specific cache
-export const updateCharacterService = async (id, data) => {
-  const figurinhas = Array.isArray(data.figurinhas)
-    ? data.figurinhas.filter(Boolean)
-    : data.figurinhas;
+export const updateCharacterService = async (id, personData) => {
+  // 1. Atualiza no banco
+  const updatedCharacter = await personRepository.updateCharacterById(id, personData);
 
-  const personagemAtualizado = await personRepository.updateCharacterById(id, {
-    ...data,
-    figurinhas
-  });
+  if (updatedCharacter) {
+    const charCacheKey = `character:id:${id}`;
+    const userCacheKey = `character:user:${updatedCharacter.usuario_id}`;
 
-  if (!personagemAtualizado) {
-    throw new Error(PERSONAGEM_RULES.PERSONAGEM_NAO_ENCONTRADO_ERROR);
+    try {
+      await Promise.all([
+        cacheService.cacheDel(charCacheKey),
+        cacheService.cacheDel(userCacheKey)
+      ]);
+      
+      console.log(`[Redis] Cache invalidado instantaneamente para a lista do usuário e o bot ID: ${id}`);
+    } catch (cacheErr) {
+      console.warn(`[Redis ERROR] Falha ao deletar chaves no update:`, cacheErr.message);
+    }
   }
 
-  // Em vez de deletar TUDO com 'character:*', deleta só o que mudou:
-  await cacheService.cacheDel(`character:id:${id}`); 
-  
-  // Limpa também a primeira página do explore global, pois os dados dele mudaram lá
-  await cacheService.cacheDel('character:explore:1:50');
-  
-  return personagemAtualizado;
+  return updatedCharacter;
 };
-// ─────────────────────────────────────────────────────────────────────────
+
 
 // Get all characters (explore)
 export const getCharactersService = async (page = 1, limit = 50) => {

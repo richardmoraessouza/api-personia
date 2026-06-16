@@ -70,6 +70,7 @@ export const loginUserService = async (gmail) => {
     gmail: usuario.gmail,
     foto_perfil: usuario.foto_perfil,
     descricao: usuario.descricao,
+    frame: usuario.frame,
     token
   };
 };

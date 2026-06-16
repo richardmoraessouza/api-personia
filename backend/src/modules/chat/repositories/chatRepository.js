@@ -25,7 +25,7 @@ export async function getCharacterById(id) {
      historia, regras, tipo_personagem, fotoia, bio,
      descricao, aparencia, gostos, desgostos, objetivos,
      primeiramensagem, relacaousuario, cenario,
-     conversation_style
+     conversation_style, quick_prompt, is_modo_rapido
    FROM personia2.personagens 
    WHERE id = $1`,
   [id]
