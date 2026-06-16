@@ -1,5 +1,5 @@
 import * as characterService from '../services/CharacterService.js';
-import * as personRepository from '../repositories/personRepository.js';
+import * as personRepository from '../repositories/characterRepository.js';
 
 // Get characters by user ID
 export const search = async (req, res) => {

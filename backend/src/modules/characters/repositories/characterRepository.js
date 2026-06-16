@@ -42,7 +42,7 @@ export const updateCharacterById = async (id, person) => {
     nome, bio, genero, personalidade, historia, fotoia, regras, 
     descricao, obra, tipo_personagem, conversation_style, 
     aparencia, gostos, desgostos, objetivos, primeiramensagem, 
-    relacaousuario, cenario
+    relacaousuario, cenario, quick_prompt, is_modo_rapido
   } = person;
 
   const query = `
@@ -52,8 +52,8 @@ export const updateCharacterById = async (id, person) => {
       historia = $5, fotoia = $6, regras = $7, descricao = $8,
       obra = $9, tipo_personagem = $10, conversation_style = $11,
       aparencia = $12, gostos = $13, desgostos = $14, objetivos = $15,
-      primeiramensagem = $16, relacaousuario = $17, cenario = $18
-    WHERE id = $19
+      primeiramensagem = $16, relacaousuario = $17, cenario = $18, quick_prompt = $19, is_modo_rapido = $20
+    WHERE id = $21
     RETURNING *
   `;
 
@@ -62,7 +62,7 @@ export const updateCharacterById = async (id, person) => {
     historia ?? null, fotoia ?? null, regras ?? null, descricao ?? null,
     obra ?? null, tipo_personagem ?? null, conversation_style ?? null,
     aparencia ?? null, gostos ?? null, desgostos ?? null, objetivos ?? null,
-    primeiramensagem ?? null, relacaousuario ?? null, cenario ?? null, id
+    primeiramensagem ?? null, relacaousuario ?? null, cenario ?? null, quick_prompt ?? null, is_modo_rapido ?? null, id
   ];
 
   const result = await db.query(query, values);
@@ -91,27 +91,26 @@ export const createCharacter = async (person) => {
     nome, genero, personalidade, historia, fotoia, regras, 
     usuario_id, usuarioId, descricao, obra, bio, 
     conversation_style, aparencia, gostos, desgostos, 
-    objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem
+    objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem, quick_prompt, is_modo_rapido
   } = person;
   
   const userId = usuario_id || usuarioId;
 
-  // SQL atualizado com todos os novos campos
   const query = `
     INSERT INTO personia2.personagens 
     (
       nome, genero, personalidade, historia, fotoia, regras, usuario_id, 
       descricao, obra, bio, conversation_style, aparencia, gostos, 
-      desgostos, objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem
+      desgostos, objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem, quick_prompt, is_modo_rapido
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
     RETURNING *
   `;
 
   const values = [
     nome, genero, personalidade, historia, fotoia, regras, userId, 
     descricao, obra, bio, conversation_style, aparencia, gostos, 
-    desgostos, objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem
+    desgostos, objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem, quick_prompt, is_modo_rapido
   ];
 
   const result = await db.query(query, values);

@@ -1,12 +1,15 @@
-import { GENERAL_CHARACTER_RULES, FICTIONAL_CHARACTER_RULES, PERSON_CHARACTER_RULES } from '../../../rules/chatRules.js';
+import { GENERAL_CHARACTER_RULES, FICTIONAL_CHARACTER_RULES, PERSON_CHARACTER_RULES, CONVERSATION_STYLE_RULES } from '../../../rules/chatRules.js';
 
 export default function buildPersonPrompt(personagem = {}) {
   const p = personagem;
   if (!p || !p.tipo_personagem) return '';
 
-  // 1. GENERAL RULES: Apply to ALL character types (Fictional and Person)
- const regrasGerais = `
+  const styleRules = CONVERSATION_STYLE_RULES[p.conversation_style] 
+    ?? CONVERSATION_STYLE_RULES['Modo Direto'];
+
+  const regrasGerais = `
   ${GENERAL_CHARACTER_RULES}
+  ${styleRules}
   - Seu nome é ${p.nome || 'desconhecido'}.
   ${p.obra ? `- Da obra: ${p.obra}.` : ''}
   ${p.historia ? `- História base: ${p.historia}.` : ''}
@@ -20,11 +23,17 @@ export default function buildPersonPrompt(personagem = {}) {
   ${p.relacaousuario ? `- Relação com o usuário: ${p.relacaousuario}.` : ''}
   ${p.cenario ? `- Cenário: ${p.cenario}.` : ''}
   ${p.primeiramensagem ? `- Primeira mensagem: ${p.primeiramensagem}.` : ''}
-  ${p.conversation_style ? `- Estilo de conversa: ${p.conversation_style}.` : ''}
   `;
 
-  // 2. RULES FOR FICTIONAL CHARACTERS
-  if (p.tipo_personagem === 'ficcional') {
+  if (p.tipo_personagem === 'fictional' && p.is_modo_rapido === true) {
+    return `
+    ${p.nome}
+    ${p.descricao}
+    ${p.obra}
+    ${styleRules}
+    ${p.quick_prompt}
+    `;
+  } else if (p.tipo_personagem === 'fictional') {
     return `
     ${regrasGerais}
     ${FICTIONAL_CHARACTER_RULES}
@@ -32,12 +41,20 @@ export default function buildPersonPrompt(personagem = {}) {
     `;
   }
 
-  // 3. RULES FOR PERSON CHARACTERS
-  if (p.tipo_personagem === 'person') {
+
+  if (p.tipo_personagem === 'person' && p.is_modo_rapido === true) {
+  
     return `
-    ${regrasGerais}
-    ${PERSON_CHARACTER_RULES}
+        ${p.nome}
+        ${p.descricao}
+        ${styleRules}
+        ${p.quick_prompt}
     `;
+  } else if (p.tipo_personagem === 'person') {
+    return `
+      ${regrasGerais}
+      ${PERSON_CHARACTER_RULES}
+    `
   }
 
   return '';

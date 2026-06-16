@@ -4,50 +4,31 @@ import * as chatService from '../services/chatService.js';
  * POST /chat/:personagemId
  * chat with character
  */
-
 export const chatComPersonagem = async (req, res) => {
   const { personagemId } = req.params;
   const { message } = req.body;
   const userId = req.user?.id || req.userId || 'anon';
+
 
   try {
     const response = await chatService.chatComPersonagemService(userId, personagemId, message);
     return res.status(200).json(response);
 
   } catch (err) {
-    console.error('Erro em chatComPersonagem:', err);
+    console.error('Erro no chat:', err);
+    const errMsg = err.message || '';
 
-    const message = err?.message || '';
-
-    // Specific error messages
-    if (message.includes('Nenhuma Gemini API key configurada') ||
-        message.includes('Nenhuma chave Gemini')) {
-      return res.status(503).json({
-        reply: "Error: Gemini API key not configured on server."
-      });
+    if (errMsg.includes('Character not found')) {
+      return res.status(404).json({ message: 'Personagem não encontrado.' });
+    }
+    if (errMsg.includes('Mensagem vazia')) {
+      return res.status(400).json({ message: errMsg });
+    }
+    if (errMsg.includes('API key') || errMsg.includes('Gemini key')) {
+      return res.status(503).json({ message: 'Serviço de IA indisponível no momento.' });
     }
 
-    if (message.includes('API key') || message.includes('API_KEY')) {
-      return res.status(503).json({
-        reply: "Erro: problema com a Gemini API key no servidor."
-      });
-    }
-
-    if (message.includes('Character not found')) {
-      return res.status(404).json({
-        reply: "Character not found"
-      });
-    }
-
-    if (message.includes('Mensagem vazia')) {
-      return res.status(400).json({
-        reply: "Mensagem vazia 😅"
-      });
-    }
-
-    return res.status(500).json({
-      reply: "Erro no chat com personagem 😢"
-    });
+    return res.status(500).json({ message: errMsg || 'Erro interno no servidor' });
   }
 };
 

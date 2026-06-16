@@ -35,9 +35,9 @@ export const getNameUser = async (req, res) => {
       return res.status(400).json({ error: 'Invalid ID' });
     }
 
-    const nameUser = await userService.getNameUserService(usuarioId);
+    const userData = await userService.getNameUserService(usuarioId);
 
-    return res.status(200).json({ nome: nameUser });
+    return res.status(200).json(userData);
 
   } catch (err) {
     console.error('Error searching user name:', err);
@@ -113,4 +113,46 @@ export const getNameOtherUser = async (req, res) => {
     }
     return res.status(500).json({ error: 'Error searching user name.' });
   }
+}
+
+// Shows user data in mini profile
+export const getDataMiniProfile = async (req, res) => {
+  const { usuarioId } = req.params;
+  
+  if (!usuarioId || isNaN(usuarioId)) {
+    return res.status(400).json({ error: 'Invalid user ID.' });
+  }
+
+  try {
+    const dataMiniProfile = await userService.getDataMiniProfileService(usuarioId);
+    return res.status(200).json(dataMiniProfile)
+  } catch (err) {
+    console.error('Error loading user data:', err.message);
+
+    if (err.message === 'USER_NOT_FOUND') {
+      return res.status(404).json({ error: 'USUARIO_NAO_ENCONTRADO' });
+    }
+
+    return res.status(500).json({ error: 'ERRO_INTERNO_SERVIDOR' });
+  }
+}
+
+// update frame user
+export const updateFrame = async (req, res) => {
+  const { usuarioId } = req.params;
+  const { frame } = req.body;
+
+  if (!usuarioId || isNaN(usuarioId)) {
+    return res.status(400).json({ error: 'Invalid user ID.' });
+  }
+
+  try {
+    const updatedFrame = await userService.updateFrameService(usuarioId, frame);
+
+    return res.status(200).json({ frame: updatedFrame });
+  } catch (err) {
+    console.error('Error updating frame:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+    
 }

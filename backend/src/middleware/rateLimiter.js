@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { RATE_LIMITER_RULES } from '../rules/rateLimiterRules.js';
 
 // ✅ MELHORADO: Rate limit por user ID (mais seguro que IP)
@@ -6,8 +6,7 @@ const keyGeneratorByUser = (req, res) => {
   if (req.user?.id) {
     return `user:${req.user.id}`;
   }
-  // Fallback para IP se não autenticado
-  return `ip:${req.ip}`;
+  return `ip:${ipKeyGenerator(req)}`; // <- troca req.ip por isso
 };
 
 // Rate limit para ações sociais (likes, favoritos, follows)

@@ -23,7 +23,7 @@ export async function deleteFollower(seguidor_id, seguido_id) {
 // Returns list of users following this user
 export async function selectFollowers(usuario_id) {
     const result = await db.query(
-        `SELECT u.id, u.nome, u.foto_perfil
+        `SELECT u.id, u.nome, u.foto_perfil, u.frame
          FROM personia2.seguidores s
          JOIN personia2.usuarios u ON s.seguidor_id = u.id
          WHERE s.seguido_id = $1`,
@@ -36,7 +36,7 @@ export async function selectFollowers(usuario_id) {
 // Returns list of users that this user is following
 export async function selectFollowing(usuario_id) {
     const result = await db.query(
-        `SELECT u.id, u.nome, u.foto_perfil
+        `SELECT u.id, u.nome, u.foto_perfil, u.frame
          FROM personia2.seguidores s
          JOIN personia2.usuarios u ON s.seguido_id = u.id
          WHERE s.seguidor_id = $1`,

@@ -1,5 +1,5 @@
 import db from '../../../config/db.js';
-import { findDataCharacterById } from '../../characters/repositories/personRepository.js';
+import { findDataCharacterById } from '../../characters/repositories/characterRepository.js';
 
 // search popular characters of the week
 export const findPopularWeek = async () => {

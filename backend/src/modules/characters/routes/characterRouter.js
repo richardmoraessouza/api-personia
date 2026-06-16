@@ -2,7 +2,7 @@ import { Router } from "express";
 import { updateCharacter, search, getDataCharacter, getSearchCharacter,
         createCharacter, handleSaveRecentCharacter,
         handleGetRecentCharacters, getCharacterProfile, countCharacterView,
-        getExploreCharacters } from "../controllers/personController.js";
+        getExploreCharacters } from "../controllers/characterController.js";
 import { verifyToken } from "../../../middleware/verifyToken.js";
 import { 
   validateCharacterId, 
