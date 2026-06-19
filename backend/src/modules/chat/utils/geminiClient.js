@@ -114,11 +114,16 @@ export async function tryGeminiRequest(fn) {
 // Generate content with specified model
 export async function generateContent(contents, model = 'gemini-2.5-flash') {
   return tryGeminiRequest(async (client) => {
-    const response = await client.models.generateContent({ model, contents });
-    
-    // Captura uso de tokens
+    const response = await client.models.generateContent({
+      model,
+      contents,
+      config: {
+        thinkingConfig: { thinkingBudget: 0 }
+      }
+    });
+
     const usage = response?.usageMetadata;
-    
+
     return {
       response,
       tokens: {
