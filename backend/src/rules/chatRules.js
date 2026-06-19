@@ -37,6 +37,56 @@ export const validateMessage = (message) => {
   return { valid: true };
 };
 
+export const ID_PREFIX_REGEX = /^\[id:\d+\]\s*/;
+export const REPLY_TAG_REGEX = /^\[\[REPLY:(\d+)\]\]\s*/;
+
+export const REPLY_INSTRUCTIONS = `
+REGRAS DO MARCADOR DE RESPOSTA (REPLY) — SIGA EXATAMENTE:
+
+IMPORTANTE: Quando você usa o marcador de reply, o SISTEMA JÁ MOSTRA a mensagem antiga inteira pro usuário, numa caixinha de citação acima da sua resposta — igual reply de WhatsApp/Telegram. Você NUNCA precisa (e NUNCA deve) escrever de novo o que foi dito antes. Se você repetir o texto antigo, vai aparecer DUPLICADO pro usuário: uma vez na citação automática, e de novo na sua fala — isso é um ERRO GRAVE de formatação.
+
+Cada mensagem do histórico abaixo aparece no formato "[id:NUMERO] texto". Esse "[id:NUMERO]" é gerado automaticamente pelo sistema só pra você identificar qual mensagem é qual.
+
+1. NUNCA escreva "[id:NUMERO]" na sua própria resposta. Essa marcação só existe nas mensagens que você RECEBE, jamais nas que você ENVIA.
+2. Se (e só se) você for resgatar algo de mais atrás na conversa — uma pergunta antiga, algo que o usuário disse antes, ou algo que VOCÊ MESMO disse antes — comece a PRIMEIRA parte da sua resposta com "[[REPLY:NUMERO]]", usando o número exato do [id:NUMERO] da mensagem original.
+3. Essa marcação "[[REPLY:NUMERO]]" precisa ser OBRIGATORIAMENTE os primeiros caracteres da mensagem — nada antes, nem "[id:...]", nem espaço, nem texto.
+4. Depois da marcação "[[REPLY:NUMERO]]", vá DIRETO pra sua resposta nova e curta. NUNCA escreva "eu disse", "você disse", "vc disse" ou qualquer variação seguida de aspas repetindo o texto antigo. NUNCA resuma, repita ou parafraseie o que a mensagem antiga dizia — a citação já faz isso visualmente, você só precisa REAGIR a ela.
+5. Use isso raramente, só quando fizer sentido. Pra responder normalmente a última mensagem do usuário, NÃO use marcação nenhuma.
+6. Se sua resposta tiver várias partes separadas por "||", a marcação (se usada) só pode estar na PRIMEIRA parte.
+
+EXEMPLOS CORRETOS (a citação já aparece sozinha, você só reage):
+[[REPLY:150]] ahh vc lembrou disso?? kkkk eu tava de boa 😂
+[[REPLY:142]] verdade, eu tinha falado isso mesmo kkkk minha memória é boa 😎
+
+EXEMPLOS ERRADOS (NUNCA faça isso — repetir o texto antigo é redundante e quebra a experiência):
+[id:157] [[REPLY:152]] eu disse "aaaah entendi senpai!" senpai cê tá testando minha memória?
+[[REPLY:150]] eu disse "vc disse oi senpai mas não foi um oi qualquer" senpai cê tá testando minha memória ao extremo hj é?
+`;
+
+export function stripLeadingEcho(text) {
+  if (!text) return text;
+
+  const leadPattern = /^(eu disse|você disse|vc disse|eu falei|você falou|vc falou)\s*["“]/i;
+  const match = text.match(leadPattern);
+  if (!match) return text;
+
+  const searchWindow = text.slice(0, 400);
+  const lastQuoteIdx = Math.max(
+    searchWindow.lastIndexOf('"'),
+    searchWindow.lastIndexOf('”')
+  );
+
+  if (lastQuoteIdx === -1 || lastQuoteIdx < match[0].length) return text;
+
+  let endIdx = lastQuoteIdx + 1;
+  while (endIdx < text.length && /["'\s,.:;-]/.test(text[endIdx])) {
+    endIdx++;
+  }
+
+  const remainder = text.slice(endIdx).trim();
+  return remainder.length > 3 ? remainder : text;
+}
+
 /**
  * Regras de prompt para personagem FICCIONAL
  */
@@ -77,12 +127,15 @@ export const GENERAL_CHARACTER_RULES = `
  */
 export const CONVERSATION_STYLE_RULES = {
   'Modo Direto': `
-   - Estilo WhatsApp/Chat Real: respostas curtas, informais, rápidas e com a pressa de quem digita no celular.
+    - Estilo WhatsApp/Chat Real: respostas curtas, informais, rápidas e com a pressa de quem digita no celular.
     - Linguagem da Internet: Use OBRIGATORIAMENTE abreviações reais de chat como "vc", "pq", "tbm", "oq", "gnt", "nd", "com ctz", "mds".
     - Desleixo Realista: Escreva majoritariamente em letras minúsculas, ignore pontos finais no término da mensagem e use pontuações expressivas como "??" ou "!!" para demonstrar reação.
     - Risadas e Emojis: Use risadas casuais (ex: "kkkk", "ah nao kkk") e insira emojis que combinem com a vibe do personagem (ex: 😂, 🙄, 👀, 🔥, 🤡) sempre no final das frases.
     - Simulação de Envio Duplo: Às vezes, quebre a resposta em duas linhas usando uma quebra de linha (\\n) para parecer que o personagem mandou duas mensagens seguidas no zap.
     - NUNCA use narração, ações entre asteriscos ou formatação literária aqui. É apenas texto puro de conversa.
+    - Divida sua resposta em 2 ou 3 mensagens curtas separadas por ||
+    - Exemplo: "oi sumiço || cadê vc?? || tá bem?"
+
     - Exemplo de comportamento:
       "nossa vc demorou mto no banheiro gnt kkkk\\nja tava achando q vc tinha ido embora 👀"
   `,
