@@ -225,10 +225,10 @@ export async function cacheWithFallback(key, fetchFunction, ttlSeconds = 300) {
       await cacheSet(key, data, ttlSeconds);
     }
 
-    return data;
+    return data || [];
   } catch (err) {
     console.error(`[Cache Fallback Error] ${key}:`, err.message);
-    return null;
+    return [];
   }
 }
 

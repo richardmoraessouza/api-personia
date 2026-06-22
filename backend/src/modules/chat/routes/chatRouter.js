@@ -7,74 +7,250 @@ import { validateChatMessage, validateCharacterId } from '../../../middleware/in
 const router = Router();
 
 /**
- * @route   POST /api/chats/chat/:personagemId
- * @desc    Main interaction endpoint to chat with an AI character
- * @desc    Request body: { message: string, replyToId?: number }
- * @desc    replyToId (optional): References a specific message for quote/reply functionality
- * @access  Public / Protected (Rate limited to prevent cost and DoS spikes)
+ * @swagger
+ * /chat/chat/{personagemId}:
+ *   post:
+ *     summary: Conversar com um personagem IA
+ *     tags:
+ *       - Chat
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: personagemId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID do personagem
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           example:
+ *             message: "Olá Naruto"
+ *             replyToId: 123
+ *     responses:
+ *       200:
+ *         description: Resposta gerada pela IA
+ *       400:
+ *         description: Mensagem inválida
+ *       404:
+ *         description: Personagem ou mensagem referenciada não encontrada
+ *       503:
+ *         description: Serviço de IA indisponível
+ *       500:
+ *         description: Erro interno do servidor
  */
 router.post('/chat/:personagemId', verifyToken, chatLimiter, validateChatMessage, chatController.chatComPersonagem);
 
 /**
- * @route   GET /api/chats/chat/:personagemId/historico
- * @desc    Retrieve paginated chat messages for a character conversation session
- * @desc    Query params: limit (default: 30), offset (default: 0)
- * @desc    Response includes reply_to_id field for message quote context
- * @access  Public / Protected
+ * @swagger
+ * /chat/chat/{personagemId}/historico:
+ *   get:
+ *     summary: Buscar histórico da conversa
+ *     tags:
+ *       - Chat
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: personagemId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 30
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *     responses:
+ *       200:
+ *         description: Histórico carregado
  */
 router.get('/chat/:personagemId/historico', verifyToken, chatController.getHistoricoChat);
 
 /**
- * @route   GET /api/chats/chat/:personagemId/message/:messageId
- * @desc    Retrieve a single message by ID (used for quote/reply population)
- * @desc    Response includes full message with reply_to_id reference
- * @access  Public / Protected
+ * @swagger
+ * /chat/chat/{personagemId}/message/{messageId}:
+ *   get:
+ *     summary: Buscar mensagem específica
+ *     tags:
+ *       - Chat
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: personagemId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Mensagem encontrada
+ *       404:
+ *         description: Mensagem não encontrada
  */
 router.get('/chat/:personagemId/message/:messageId', verifyToken, chatController.getMessageById);
 
 /**
- * @route   DELETE /api/chats/:personagemId/limpar
- * @desc    Clear/invalidate the conversation session context and cache
- * @access  Private (Requires valid JWT token and validated ID parameters)
+ * @swagger
+ * /chat/{personagemId}/limpar:
+ *   delete:
+ *     summary: Limpar memória da conversa
+ *     tags:
+ *       - Chat
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: personagemId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Memória limpa com sucesso
+ *       500:
+ *         description: Erro interno
  */
 router.delete('/:personagemId/limpar', verifyToken, validateCharacterId, chatController.limparMemoria);
 
 /**
- * @route   GET /api/chats/:userId/:characterId/history
- * @desc    Administrative direct HTTP handler to fetch recent messages by user and character IDs
- * @access  Internal / Protected
+ * @swagger
+ * /chat/{userId}/{characterId}/history:
+ *   get:
+ *     summary: Buscar histórico por usuário e personagem
+ *     tags:
+ *       - Chat
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: characterId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Histórico encontrado
  */
 router.get('/:userId/:characterId/history', chatController.getHistory);
 
 /**
- * @route   POST /api/chats/:userId/:characterId/messages
- * @desc    Directly append a single message without triggering AI completion
- * @desc    Request body: { role: 'user'|'model', content: string, replyToId?: number }
- * @access  Internal / Protected
+ * @swagger
+ * /chat/{userId}/{characterId}/messages:
+ *   post:
+ *     summary: Salvar mensagem manualmente
+ *     tags:
+ *       - Chat
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: characterId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           example:
+ *             role: user
+ *             content: Olá
+ *             replyToId: 10
+ *     responses:
+ *       201:
+ *         description: Mensagem criada
+ *       400:
+ *         description: Dados inválidos
  */
 router.post('/:userId/:characterId/messages', chatController.createMessage);
 
 /**
- * @route   DELETE /api/chats/messages/:id
- * @desc    Delete a specific message by ID
- * @desc    Related messages with reply_to_id pointing to this message will have that reference nullified
- * @access  Private / Protected
+ * @swagger
+ * /chat/messages/{id}:
+ *   delete:
+ *     summary: Excluir mensagem
+ *     tags:
+ *       - Chat
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Mensagem removida
+ *       404:
+ *         description: Mensagem não encontrada
  */
 router.delete('/messages/:id', verifyToken, chatController.deleteMessage);
 
 /**
- * @route   PATCH /api/chats/messages/:id/pin
- * @desc    Pin or unpin a message by toggling its visibility flag
- * @desc    Request body: { isPinned: boolean }
- * @access  Private / Protected
+ * @swagger
+ * /chat/messages/{id}/pin:
+ *   patch:
+ *     summary: Fixar ou desafixar mensagem
+ *     tags:
+ *       - Chat
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           example:
+ *             isPinned: true
+ *     responses:
+ *       200:
+ *         description: Mensagem atualizada
  */
 router.patch('/messages/:id/pin', verifyToken, chatController.togglePinMessage);
 
 /**
- * @route   GET /api/chats/chats/:chatId/pinned
- * @desc    Get all pinned messages from a specific chat room
- * @desc    Response includes reply_to_id for quote reconstruction on UI
- * @access  Private / Protected
+ * @swagger
+ * /chat/chats/{chatId}/pinned:
+ *   get:
+ *     summary: Listar mensagens fixadas
+ *     tags:
+ *       - Chat
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: chatId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Lista de mensagens fixadas
  */
 router.get('/chats/:chatId/pinned', verifyToken, chatController.getPinnedMessages);
 

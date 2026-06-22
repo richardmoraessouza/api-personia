@@ -14,19 +14,24 @@ export const getPopularWeek = async (req, res) => {
 export const getFeed = async (req, res) => {
   try {
     const { usuarioId } = req.params;
+    const { page, limit } = req.query;
 
     if (!usuarioId || usuarioId === 'undefined' || isNaN(Number(usuarioId))) {
       return res.status(400).json({ message: "ID de usuário inválido enviado." });
     }
 
-    const feed = await discoveryService.getRecommendationsService(Number(usuarioId)); 
-    
+    const feed = await discoveryService.getRecommendationsService(
+      Number(usuarioId),
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 20
+    );
+
     return res.status(200).json(feed);
   } catch (error) {
     console.error("ERRO CRÍTICO NO GETFEED:", error);
-    return res.status(500).json({ 
-      message: "Erro interno no servidor ao buscar feed", 
-      error: error.message 
+    return res.status(500).json({
+      message: "Erro interno no servidor ao buscar feed",
+      error: error.message
     });
   }
 };

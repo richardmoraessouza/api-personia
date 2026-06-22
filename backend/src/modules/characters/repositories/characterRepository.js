@@ -24,14 +24,29 @@ export const findDataCharacterById = async (id) => {
   return result.rows[0] || null;
 };
 
-// Search characters by name
-export const searchCharactersByName = async (nomePersonagem) => {
+// Search characters by name and optionally filter by tag slug
+export const searchCharactersByNameAndTag = async (nomePersonagem, tagSlug = '', limit = 20, offset = 0) => {
   const lowerTerm = `%${nomePersonagem.toLowerCase()}%`;
+
+  if (!tagSlug) {
+    const result = await db.query(`
+      SELECT id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao, tags_slugs AS tags
+      FROM personia2.personagens
+      WHERE LOWER(nome) LIKE $1
+      ORDER BY id
+      LIMIT $2 OFFSET $3
+    `, [lowerTerm, limit, offset]);
+    return result.rows;
+  }
+
   const result = await db.query(`
-    SELECT id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao
+    SELECT id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao, tags_slugs AS tags
     FROM personia2.personagens
     WHERE LOWER(nome) LIKE $1
-  `, [lowerTerm]);
+      AND $2 = ANY(tags_slugs)
+    ORDER BY id
+    LIMIT $3 OFFSET $4
+  `, [lowerTerm, tagSlug, limit, offset]);
 
   return result.rows;
 };

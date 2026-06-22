@@ -30,14 +30,14 @@ export const getDataCharacterById = async (id) => {
   );
 };
 
-// Search for characters by name with caching
-export const getCharactersSearchService = async (nomePersonagem) => {
+// Search for characters by name and tag with caching
+export const getCharactersSearchService = async (nomePersonagem, tagSlug = '') => {
   const lowerTerm = nomePersonagem.toLowerCase();
-  const cacheKey = `character:search:${lowerTerm}`;
+  const cacheKey = `character:search:${lowerTerm}:${tagSlug}`;
   
   return await cacheService.cacheWithFallback(
     cacheKey,
-    () => personRepository.searchCharactersByName(nomePersonagem),
+    () => personRepository.searchCharactersByNameAndTag(nomePersonagem, tagSlug),
     CACHE_TTL.SEARCH
   );
 };
@@ -65,7 +65,6 @@ export const updateCharacterService = async (id, personData) => {
 
   return updatedCharacter;
 };
-
 
 // Get all characters (explore)
 export const getCharactersService = async (page = 1, limit = 50) => {
