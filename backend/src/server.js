@@ -5,7 +5,7 @@ import helmet from "helmet";
 import csrf from "csurf";
 import session from "express-session";
 import { RedisStore } from "connect-redis";
-import userRouter from "./modules/users/routes/userRouter.js"
+import userRouter from "./modules/users/routes/userRouter.js";
 import characterRouter from "./modules/characters/routes/characterRouter.js";
 import authRouter from "./modules/auth/routes/authRouter.js";
 import socialRouter from "./modules/social/routes/socialRouter.js";
@@ -13,7 +13,10 @@ import chatRouter from "./modules/chat/routes/chatRouter.js";
 import discoveryRouter from "./modules/discovery/routes/discoveryRouter.js";
 import ratingsRouter from "./modules/ratings/routes/ratingsRouter.js";
 import { initializeRedis, getRedisClient } from "./config/redis.js";
-
+import cookieRouter from "./modules/cookies/routes/cookieRouter.js";
+import { sanitizeCookieHeaders } from "./middleware/cookieConsent.js";
+import swaggerUi from "swagger-ui-express";
+import swaggerSpec from "./swagger.js";
 dotenv.config();
 
 // ==========================================
@@ -26,12 +29,18 @@ if (!process.env.JWT_SECRET) {
 }
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = 3001;
+
+// Documentação da API
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec)
+);
 
 // ==========================================
-// CONFIGURAÇÃO DE CORS RESTRITIVO (VIA .ENV)
+// PROCESSAMENTO DE ORIGENS CORS (VIA .ENV)
 // ==========================================
-
 const corsOriginsEnv = process.env.CORS_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:5173';
 const allowedOrigins = corsOriginsEnv
   .split(',')
@@ -43,12 +52,29 @@ if (allowedOrigins.length === 0) {
   process.exit(1);
 }
 
-console.log(`✅ CORS configurado para: ${allowedOrigins.join(', ')}`);
+// ==========================================
+// CONFIGURAÇÃO DE CORS RESTRITIVO (NO TOPO)
+// ==========================================
+// ✅ CORRIGIDO: Ativado logo no início para processar as requisições antes dos outros middlewares
+app.use(cors({
+  origin: (origin, callback) => {
+    // Permite requisições sem origin (como mobile apps, postman ou server-to-server)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS rejeitado para origem: ${origin}`);
+      callback(new Error('CORS não permitido para esta origem'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Access-Token', 'X-CSRF-Token']
+}));
 
 // ==========================================
 // SEGURANÇA: HELMET.JS (Headers de Segurança HTTP)
 // ==========================================
-// ✅ NOVO: Proteção contra ataques comuns (XSS, Clickjacking, etc)
+// ✅ AJUSTADO: Adicionado localhost:3000 e 3002 no connectSrc para evitar bloqueios de scripts
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -56,7 +82,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'"],
       scriptSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://generativelanguage.googleapis.com"],
+      connectSrc: ["'self'", "https://generativelanguage.googleapis.com", "http://localhost:3000", "http://localhost:3002"],
     },
   },
   hsts: { 
@@ -77,7 +103,6 @@ app.use(helmet({
 // ==========================================
 // SEGURANÇA: SESSION + CSRF PROTECTION
 // ==========================================
-// ✅ NOVO: Sessão com Redis + CSRF token
 const redisClient = getRedisClient();
 
 app.use(session({
@@ -93,10 +118,10 @@ app.use(session({
   }
 }));
 
-// ✅ NOVO: Middleware CSRF - protege routes POST/PUT/DELETE
-const csrfProtection = csrf({ cookie: false });  // Usa session, não cookies
+// Middleware CSRF - protege rotas POST/PUT/DELETE (Usa session, não cookies)
+const csrfProtection = csrf({ cookie: false });  
 
-// ✅ NOVO: Endpoint para obter token CSRF (GET - seguro)
+// Endpoint para obter token CSRF (GET - seguro)
 app.get('/csrf-token', csrfProtection, (req, res) => {
   res.json({ 
     csrfToken: req.csrfToken(),
@@ -104,25 +129,12 @@ app.get('/csrf-token', csrfProtection, (req, res) => {
   });
 });
 
-app.use(cors({
-  origin: (origin, callback) => {
-    // Permite requisições sem origin (como mobile apps ou server-to-server)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn(`⚠️ CORS rejeitado para origem: ${origin}`);
-      callback(new Error('CORS não permitido para esta origem'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Access-Token', 'X-CSRF-Token']
-}));
-
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 
-// Routes
+// ==========================================
+// ROTAS DO SISTEMA
+// ==========================================
 app.use("/users", userRouter);
 app.use("/character", characterRouter);
 app.use("/auth", authRouter);
@@ -132,26 +144,29 @@ app.use("/discovery", discoveryRouter);
 app.use('/ratings', ratingsRouter);
 
 // ==========================================
+// SEGURANÇA: SANITIZAÇÃO DE COOKIES
+// ==========================================
+app.use(sanitizeCookieHeaders);
+
+// ROTAS DE GERENCIAMENTO DE COOKIES
+app.use('/api/cookies', cookieRouter);
+
+// ==========================================
 // MIDDLEWARE DE ERRO GLOBAL
 // ==========================================
-// ✅ MELHORADO: Não expõe detalhes de erro em produção
 app.use((err, req, res, next) => {
   const isDevelopment = process.env.NODE_ENV === 'development';
   
-  // Log do erro (sempre, para debug interno)
   if (!isDevelopment) {
-    // Em produção: log simplificado
     console.error('❌ Erro:', {
       code: err.code || 'UNKNOWN',
       timestamp: new Date().toISOString(),
       path: req.path
     });
   } else {
-    // Em desenvolvimento: log completo
     console.error('❌ Erro não tratado:', err);
   }
   
-  // CSRF token errors
   if (err.code === 'EBADCSRFTOKEN') {
     return res.status(403).json({ 
       erro: 'CSRF validation failed',
@@ -159,15 +174,13 @@ app.use((err, req, res, next) => {
     });
   }
   
-  // Response
   res.status(err.status || 500).json({ 
     erro: isDevelopment ? err.message : 'Erro interno do servidor',
     code: err.code || 'INTERNAL_SERVER_ERROR',
-    ...(isDevelopment && { stack: err.stack })  // Stack trace apenas em desenvolvimento
+    ...(isDevelopment && { stack: err.stack })
   });
 });
 
-// ✅ NOVO: Exportar CSRF protection para rotas que precisam
 export { csrfProtection };
 
 // ==========================================
@@ -175,18 +188,17 @@ export { csrfProtection };
 // ==========================================
 async function startServer() {
   try {
-    // Inicializar Redis
     const redisOk = await initializeRedis();
     if (!redisOk) {
       console.warn('⚠️ Servidor iniciando sem Redis (cache desabilitado)');
     }
     
-    // Iniciar servidor HTTP
     app.listen(PORT, () => {
       const environment = process.env.NODE_ENV || 'development';
       console.log(`✅ Servidor rodando em http://localhost:${PORT}`);
       console.log(`📍 Ambiente: ${environment}`);
       console.log(`🔒 Segurança: Helmet.js ativado, CSRF protegido, Session com Redis`);
+      console.log(`✅ CORS configurado para: ${allowedOrigins.join(', ')}`);
       
       if (environment === 'production') {
         console.log('🚀 MODO PRODUÇÃO - Erros detalhados desabilitados');

@@ -42,19 +42,21 @@ export const getDataCharacter = async (req, res) => {
   }
 };
 
-// Search character by name
+// Search character by name (And optionally filter by tag)
 export const getSearchCharacter = async (req, res) => {
-  const { nomePersonagem } = req.query;
+  // Agora aceitamos também o parâmetro 'tag' vindo da URL (?nomePersonagem=Naruto&tag=romance)
+  const { nomePersonagem, tag } = req.query;
 
   if (!nomePersonagem) {
     return res.status(400).json({ success: false, error: 'The characterName parameter is required.' });
   }
 
   try {
-    const resultados = await characterService.getCharactersSearchService(nomePersonagem);
+    // Passamos o nome e a tag para a nova lógica do service
+    const resultados = await characterService.getCharactersSearchService(nomePersonagem, tag);
 
-    if (resultados.length === 0) {
-      return res.status(404).json({ success: false, message: 'No character found with that name.' });
+    if (!resultados || resultados.length === 0) {
+      return res.status(404).json({ success: false, message: 'No character found with these filters.' });
     }
 
     return res.status(200).json({ success: true, resultados });

@@ -16,18 +16,17 @@ export const getPopularWeekService = async () => {
   );
 };
 
-export const getRecommendationsService = async (usuarioId) => {
-  return await discoveryRepository.getRecommendationsByWeight(usuarioId);
+export const getRecommendationsService = async (usuarioId, page = 1, limit = 20) => {
+  return await discoveryRepository.getRecommendationsByWeight(usuarioId, page, limit);
 };
 
 // Correção da sua outra função caso você a use no futuro
 export const getHomeFeed = async (usuarioId) => {
-  // CORREÇÃO: Adicionado o "discoveryRepository." antes da função
+ 
   const recs = await discoveryRepository.getRecommendationsByWeight(usuarioId);
   
   if (!recs || recs.length === 0) {
     console.log("Usuário sem histórico. Buscando populares...");
-    // CORREÇÃO: Adicionado o "discoveryRepository." antes da função
     return await discoveryRepository.findPopularWeek(); 
   }
   
