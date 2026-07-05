@@ -1,4 +1,4 @@
-import { GENERAL_CHARACTER_RULES, FICTIONAL_CHARACTER_RULES, PERSON_CHARACTER_RULES, CONVERSATION_STYLE_RULES } from '../../../rules/chatRules.js';
+import { GENERAL_CHARACTER_RULES, FICTIONAL_CHARACTER_RULES, PERSON_CHARACTER_RULES, CONVERSATION_STYLE_RULES, EMOTION_INSTRUCTIONS} from '../../../rules/chatRules.js';
 
 export default function buildPersonPrompt(personagem = {}) {
   const p = personagem;
@@ -9,6 +9,7 @@ export default function buildPersonPrompt(personagem = {}) {
 
   const regrasGerais = `
   ${GENERAL_CHARACTER_RULES}
+  ${EMOTION_INSTRUCTIONS}
   ${styleRules}
   - Seu nome é ${p.nome || 'desconhecido'}.
   ${p.obra ? `- Da obra: ${p.obra}.` : ''}
@@ -30,6 +31,7 @@ export default function buildPersonPrompt(personagem = {}) {
     ${p.nome}
     ${p.descricao}
     ${p.obra}
+    ${EMOTION_INSTRUCTIONS}
     ${styleRules}
     ${p.quick_prompt}
     `;
@@ -49,6 +51,7 @@ export default function buildPersonPrompt(personagem = {}) {
         ${p.descricao}
         ${styleRules}
         ${p.quick_prompt}
+        ${EMOTION_INSTRUCTIONS}
     `;
   } else if (p.tipo_personagem === 'person') {
     return `

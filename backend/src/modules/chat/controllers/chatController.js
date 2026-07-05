@@ -1,6 +1,46 @@
 import * as chatService from '../services/chatService.js';
 
 /**
+ * POST /api/conversation-time
+ * Save elapsed session time for a user+character pair
+ */
+export const saveTime = async (req, res) => {
+  try {
+    const { characterId, seconds } = req.body;
+    const userId = req.user.id;
+
+    if (!characterId || !seconds) {
+      return res.status(400).json({ error: 'characterId and seconds are required' });
+    }
+
+    const record = await chatService.saveConversationTime(userId, characterId, Number(seconds));
+    return res.status(200).json({ success: true, total_seconds: record.total_seconds });
+  } catch (err) {
+    console.error('[saveTime]', err);
+    if (err.message === 'Character not found') {
+      return res.status(404).json({ error: 'Personagem não encontrado.' });
+    }
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+/**
+ * GET /api/conversation-time/:characterId
+ * Get total conversation time for a user+character pair
+ */
+export const getTime = async (req, res) => {
+  try {
+    const { characterId } = req.params;
+    const userId = req.user.id;
+
+    const record = await chatService.fetchConversationTime(userId, characterId);
+    return res.status(200).json(record);
+  } catch (err) {
+    console.error('[getTime]', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+/**
  * @route   POST /api/chats/:personagemId
  * @desc    Send a message to a character, request completion from Gemini, and save history
  * @desc    Supports replying to specific messages by including replyToId in the request body
@@ -53,17 +93,17 @@ export const getHistoricoChat = async (req, res) => {
   const limit = req.query.limit ? Number(req.query.limit) : 30;
   const offset = req.query.offset ? Number(req.query.offset) : 0;
   
-  const userId = req.user?.id || req.userId;
+  const userId = req.user?.id;
 
   try {
     if (!userId) {
-      return res.status(200).json([]);
+      return res.status(401).json({ error: 'Não autorizado' });
     }
 
-    // Pass the parameters to the service layer
+    // Pass the parameters to the service layer - personagemId stays as string
     const history = await chatService.loadConversationService(
-      Number(userId), 
-      Number(personagemId),
+      userId, 
+      personagemId,
       limit,
       offset
     );
@@ -71,6 +111,12 @@ export const getHistoricoChat = async (req, res) => {
     return res.status(200).json(history);
   } catch (err) {
     console.error('Error fetching paginated chat history:', err);
+    if (err.message === 'Character not found') {
+      return res.status(404).json({ error: 'Personagem não encontrado.' });
+    }
+    if (err.message === 'INVALID_PARAMETERS') {
+      return res.status(400).json({ error: 'Parâmetros inválidos.' });
+    }
     return res.status(500).json({ error: 'Erro ao carregar mensagens.' });
   }
 };

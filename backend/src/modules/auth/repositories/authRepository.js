@@ -5,10 +5,23 @@ import db from '../../../config/db.js';
 // CREATE USER
 // =========================
 
+export const findUserByUsername = async (username) => {
+  const query = `
+    SELECT id, username
+    FROM personia2.usuarios
+    WHERE LOWER(username) = LOWER($1)
+    LIMIT 1
+  `;
+
+  const result = await db.query(query, [username]);
+  return result.rows[0];
+};
+
 export const createUser = async ({
   gmail,
   nome,
-  imgPerfil
+  imgPerfil,
+  username
 }) => {
 
   const query = `
@@ -16,16 +29,18 @@ export const createUser = async ({
     (
       gmail,
       nome,
-      foto_perfil
+      foto_perfil,
+      username
     )
-    VALUES ($1, $2, $3)
+    VALUES ($1, $2, $3, $4)
     RETURNING *
   `;
 
   const values = [
     gmail,
     nome,
-    imgPerfil
+    imgPerfil,
+    username
   ];
 
   const result = await db.query(query, values);
@@ -43,11 +58,11 @@ export const findUserByGmail = async (gmail) => {
   const query = `
     SELECT
       id,
-      nome,
       gmail,
       foto_perfil,
       descricao,
-      frame
+      frame,
+      username
     FROM personia2.usuarios
     WHERE gmail = $1
   `;
@@ -68,7 +83,7 @@ export const findUserPublicByGmail = async (gmail) => {
   const query = `
     SELECT
       gmail,
-      nome,
+      username,
       foto_perfil,
       frame
     FROM personia2.usuarios

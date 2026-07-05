@@ -1,12 +1,42 @@
 import * as chatRepository from '../repositories/chatRepository.js';
+import * as missionRepository from '../../../modules/missions/repositories/missionRepository.js'; 
 import buildPersonPrompt from '../utils/buildPersonPrompt.js';
 import { generateContent } from '../utils/geminiClient.js';
 import { CHAT_RULES, validateMessage, REPLY_INSTRUCTIONS, REPLY_TAG_REGEX, ID_PREFIX_REGEX, stripLeadingEcho} from '../../../rules/chatRules.js';
+import { detectUserAction, detectCharacterSays } from '../../../rules/missionDetector.js';
 
+const MAX_SESSION_SECONDS = 8 * 60 * 60;
+const MIN_SESSION_SECONDS = 5;
 
-/**
- * Formats the system prompt, historical messages, and current input into Gemini payload format
- */
+export const saveConversationTime = async (userId, characterId, seconds) => {
+  if (!userId || !characterId || !seconds) {
+    throw new Error('INVALID_PARAMETERS');
+  }
+  
+  if (seconds < MIN_SESSION_SECONDS) return { total_seconds: 0 };
+  const capped = Math.min(seconds, MAX_SESSION_SECONDS);
+
+  const character = await chatRepository.getCharacterByIdOrPublicId(characterId);
+  if (!character) {
+    throw new Error('Character not found');
+  }
+  
+  return await chatRepository.addConversationTime(userId, character.id, capped);
+};
+
+export const fetchConversationTime = async (userId, characterId) => {
+  if (!userId || !characterId) {
+    throw new Error('INVALID_PARAMETERS');
+  }
+  
+  const character = await chatRepository.getCharacterByIdOrPublicId(characterId);
+  if (!character) {
+    throw new Error('Character not found');
+  }
+  
+  return await chatRepository.getConversationTime(userId, character.id);
+};
+
 function buildGeminiContents(systemPrompt, userMessage, history) {
   const contents = [];
 
@@ -28,9 +58,6 @@ function buildGeminiContents(systemPrompt, userMessage, history) {
   return contents;
 }
 
-/**
- * Safely extracts the text content out of Gemini's response payload
- */
 function extractGeminiResponse(result) {
   try {
     const response = result?.response ?? result;
@@ -43,22 +70,13 @@ function extractGeminiResponse(result) {
   }
 }
 
-/**
- * Main orchestration service that handles user messages, interacts with Gemini, and saves history
- * @param {number} userId - Authenticated user ID
- * @param {number} personajeId - Character/AI personagem ID
- * @param {string} message - User message content
- * @param {number|null} replyToId - Optional ID of the message being replied to
- * @returns {Promise<Object>} Response object with reply messages and success status
- */
-
 export async function chatComPersonagemService(userId, personajeId, message, replyToId = null) {
   const validation = validateMessage(message);
   if (!validation.valid) {
     throw new Error(validation.error);
   }
 
-  const character = await chatRepository.getCharacterById(personajeId);
+  const character = await chatRepository.getCharacterByIdOrPublicId(personajeId);
   if (!character) {
     throw new Error('Character not found');
   }
@@ -73,14 +91,90 @@ export async function chatComPersonagemService(userId, personajeId, message, rep
   try {
     const systemPrompt = buildPersonPrompt(character);
     const history = await loadConversationService(userId, personajeId);
+    
+    const primeiraMensagemDoChat = history.length === 0;
+
     const contents = buildGeminiContents(systemPrompt, message, history);
 
     const result = await generateContent(contents);
     console.log(`[TOKENS] input: ${result.tokens.input} | output: ${result.tokens.output} | total: ${result.tokens.total}`);
 
-    const respostaIA = extractGeminiResponse(result);
-    const rawMessages = respostaIA.split('||').map(m => m.trim()).filter(Boolean);
+    const respostaBrutaIA = extractGeminiResponse(result);
+    console.log("📝 [BACKEND] Resposta bruta vinda do Gemini:", respostaBrutaIA);
 
+    // ── Detecção de emoção ────────────────────────────────────────
+    const regexEmotion = /\[EMOTION:([\w_]+)\]/i;
+    const matchEmotion = respostaBrutaIA.match(regexEmotion);
+
+    // ── Missões ───────────────────────────────────────────────────
+    const missoesCompletadas = [];
+
+    try {
+      await missionRepository.trackMissionProgress(userId, 'CHAT_MESSAGES', 1);
+
+      if (primeiraMensagemDoChat) {
+        await missionRepository.trackMissionProgress(userId, 'TALK_CHARACTER', 1);
+        
+        const r = await missionRepository.trackMissionProgress(userId, 'TALK_5_DIFFERENT_CHARACTERS', 1);
+        if (r?.completada) missoesCompletadas.push('TALK_5_DIFFERENT_CHARACTERS');
+      }
+
+      // TAG EMOTION — IA detecta e retorna a tag
+      if (matchEmotion) {
+        const emocao = matchEmotion[1].toUpperCase();
+        console.log(`🎯 [EMOTION] ${emocao}`);
+
+        const emotionMap = {
+          'BRAVO':        'MAKE_CHARACTER_ANGRY',
+          'TRISTE':       'MAKE_CHARACTER_SAD',
+          'FELIZ':        'MAKE_CHARACTER_HAPPY',
+          'APAIXONADO':   'MAKE_CHARACTER_LOVE',
+          'CIUMENTO':     'MAKE_CHARACTER_FEEL_JEALOUS',
+          'COM_SAUDADE':  'MAKE_CHARACTER_FEEL_NOSTALGIC',
+          'ENVERGONHADO': 'MAKE_CHARACTER_FEEL_EMBARRASSED',
+          'NERVOSO':      'MAKE_CHARACTER_FEEL_NERVOUS',
+          'ANIMADO':      'MAKE_CHARACTER_FEEL_EXCITED',
+          'CONFORTAVEL':  'MAKE_CHARACTER_FEEL_COMFORTABLE',
+          'SOZINHO':      'MAKE_CHARACTER_FEEL_LONELY',
+          'PROTEGIDO':    'MAKE_CHARACTER_FEEL_PROTECTED',
+          'CURIOSO':      'MAKE_CHARACTER_FEEL_CURIOUS',
+          'LISONJEADO':   'MAKE_CHARACTER_FEEL_FLATTERED',
+          'SURPRESO':     'MAKE_CHARACTER_SURPRISED',
+        };
+
+        const missionType = emotionMap[emocao];
+        if (missionType) {
+          const r = await missionRepository.trackMissionProgress(userId, missionType, 1);
+          if (r?.completada) missoesCompletadas.push(missionType);
+        }
+      } else {
+        console.log("❌ [BACKEND] Nenhuma tag [EMOTION:...] foi gerada pelo Gemini.");
+      }
+
+      // USER_ACTION — regex na mensagem do usuário
+      const userActionType = detectUserAction(message);
+      if (userActionType) {
+        console.log(`👤 [USER_ACTION] ${userActionType}`);
+        const r = await missionRepository.trackMissionProgress(userId, userActionType, 1);
+        if (r?.completada) missoesCompletadas.push(userActionType);
+      }
+
+      // CHARACTER_SAYS — regex na resposta da IA
+      const characterSaysType = detectCharacterSays(respostaBrutaIA);
+      if (characterSaysType) {
+        console.log(`🤖 [CHARACTER_SAYS] ${characterSaysType}`);
+        const r = await missionRepository.trackMissionProgress(userId, characterSaysType, 1);
+        if (r?.completada) missoesCompletadas.push(characterSaysType);
+      }
+
+    } catch (missionErr) {
+      console.error('Erro ao atualizar progresso de missões no banco:', missionErr);
+    }
+
+    // ── Limpa a tag da resposta antes de salvar ───────────────────
+    const respostaIA = respostaBrutaIA.replace(/\[EMOTION:[\w_]+\]/gi, '').trim();
+
+    const rawMessages = respostaIA.split('||').map(m => m.trim()).filter(Boolean);
     const validHistoryIds = new Set(history.map((m) => m.id));
 
     const parsedMessages = rawMessages.map((m) => {
@@ -131,9 +225,9 @@ export async function chatComPersonagemService(userId, personajeId, message, rep
       replyToIds: savedBotMessages.map((m) => m.replyToId),
       quotes,
       figurinha: null,
+      missoesCompletadas,
       success: true
     };
-    // ↑↑↑ até aqui ↑↑↑
 
   } catch (err) {
     console.error('Error inside chatComPersonagemService:', err?.message || err);
@@ -142,9 +236,6 @@ export async function chatComPersonagemService(userId, personajeId, message, rep
   }
 }
 
-/**
- * Legacy wrapper fallback to maintain compatibility with existing controllers
- */
 export async function getHistoricoChatService(userId, personajeId) {
   try {
     return await loadConversationService(userId, personajeId);
@@ -154,49 +245,38 @@ export async function getHistoricoChatService(userId, personajeId) {
   }
 }
 
-/**
- * Clears the chat memory (Kept for routing compatibility, operates directly on repository layer if needed)
- */
 export async function limparMemoriaService(userId, personajeId) {
-  // Redis cache structures removed to guarantee real-time database state synchronization
   return { success: true };
 }
 
-/**
- * Fetch paginated messages of a conversation directly from the database repository
- * @param {number} userId - Authenticated user ID
- * @param {number} characterId - Target character ID
- * @param {number} limit - Database query chunk record limit size
- * @param {number} offset - Cumulative query pagination skip index
- */
 export const loadConversationService = async (userId, characterId, limit = 30, offset = 0) => {
-  const chatId = await chatRepository.getOrCreateChatId(userId, characterId);
+  if (!userId || !characterId) {
+    throw new Error('INVALID_PARAMETERS');
+  }
   
-  // Queries the database directly as the single source of truth to avoid cache-desync issues
+  const character = await chatRepository.getCharacterByIdOrPublicId(characterId);
+  if (!character) {
+    throw new Error('Character not found');
+  }
+  
+  const chatId = await chatRepository.getOrCreateChatId(userId, character.id);
   return await chatRepository.getChatHistory(chatId, limit, offset);
 };
 
-/**
- * Append a single message line straight into the database session context
- * @param {number} userId - User ID
- * @param {number} characterId - Character ID
- * @param {string} role - Message role ('user' or 'model')
- * @param {string} content - Message text content
- * @param {number|null} replyToId - Optional ID of the message being replied to
- * @returns {Promise<Object>} The saved message object
- */
 export const sendMessageService = async (userId, characterId, role, content, replyToId = null) => {
-  if (!content || !role) {
+  if (!content || !role || !userId || !characterId) {
     throw new Error('ROLE_AND_CONTENT_REQUIRED');
   }
 
-  const chatId = await chatRepository.getOrCreateChatId(userId, characterId);
+  const character = await chatRepository.getCharacterByIdOrPublicId(characterId);
+  if (!character) {
+    throw new Error('Character not found');
+  }
+
+  const chatId = await chatRepository.getOrCreateChatId(userId, character.id);
   return await chatRepository.saveMessage(chatId, role, content, replyToId);
 };
 
-/**
- * Core business operation logic to permanently drop a message entry out of the database repository
- */
 export const deleteMessageService = async (messageId) => {
   if (!messageId) {
     throw new Error('Message ID is required');
@@ -210,9 +290,6 @@ export const deleteMessageService = async (messageId) => {
   return { success: true, message: 'Message deleted successfully' };
 };
 
-/**
- * Commit dynamic boolean visibility states on specific pinned target messages
- */
 export const togglePinMessageService = async (messageId, isPinned) => {
   if (!messageId || isPinned === undefined) {
     throw new Error('Message ID and isPinned status are required');
@@ -226,9 +303,6 @@ export const togglePinMessageService = async (messageId, isPinned) => {
   return updatedMessage;
 };
 
-/**
- * Collects structural pinned log arrays matching the active conversation target context
- */
 export const getChatPinnedMessages = async (chatId) => {
   if (!chatId) {
     throw new Error('Chat ID is required');
@@ -237,11 +311,6 @@ export const getChatPinnedMessages = async (chatId) => {
   return await chatRepository.getPinnedMessages(chatId);
 };
 
-/**
- * Fetch a single message by ID (used for quote/reply population)
- * @param {number} messageId - Message ID to fetch
- * @returns {Promise<Object|null>} Message object or null if not found
- */
 export const getMessageByIdService = async (messageId) => {
   if (!messageId) {
     throw new Error('Message ID is required');

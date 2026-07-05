@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { getUserById, getNameUser, getOtherUser, 
-        editProfile, getNameOtherUser, getDataMiniProfile, updateFrame
+        editProfile, getNameOtherUser, getDataMiniProfile, updateFrame,
+        getLevelUser,
+        getXpUser
        } from "../controllers/userController.js";
 import { verifyToken } from "../../../middleware/verifyToken.js";
 
@@ -257,5 +259,10 @@ router.get(`/mini-profile/:usuarioId`, getDataMiniProfile);
  *         description: Internal server error
  */
 router.put(`/update-frame/:usuarioId`, verifyToken, updateFrame )
+
+router.get(`/level-user/:usuarioId`, verifyToken, getLevelUser )
+
+// Search user xp by ID
+router.get('/xp-user/:usuarioId', verifyToken, getXpUser )
 
 export default router;

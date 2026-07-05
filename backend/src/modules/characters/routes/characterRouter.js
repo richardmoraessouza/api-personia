@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { updateCharacter, search, getDataCharacter, getSearchCharacter,
-        createCharacter, handleSaveRecentCharacter,
-        handleGetRecentCharacters, getCharacterProfile, countCharacterView,
+import { updateCharacter, search, getDataCharacter, getDataCharacterByPublicId, getSearchCharacter,
+        createCharacterHandler, handleSaveRecentCharacter,
+        handleGetRecentCharacters, getCharacterProfile, countCharacterView, countCharacterViewByPublicId,
         getExploreCharacters } from "../controllers/characterController.js";
 import { verifyToken } from "../../../middleware/verifyToken.js";
 import { 
@@ -111,6 +111,36 @@ router.get("/data-character-by-id/:id",validateCharacterId, getDataCharacter);
 
 /**
  * @swagger
+ * /character/data-character-by-public-id/{publicId}:
+ *   get:
+ *     summary: Buscar personagem por public_id
+ *     tags:
+ *       - Characters
+ *     parameters:
+ *       - in: path
+ *         name: publicId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Personagem encontrado
+ *         content:
+ *           application/json:
+ *             example:
+ *               id: 45
+ *               nome: Naruto
+ *               bio: Ninja da folha
+ *               public_id: "abc123xyz"
+ *       400:
+ *         description: publicId inválido
+ *       404:
+ *         description: Personagem não encontrado
+ */
+router.get("/data-character-by-public-id/:publicId", getDataCharacterByPublicId);
+
+/**
+ * @swagger
  * /character/update-character/{id}:
  *   put:
  *     summary: Atualizar personagem (Requer autenticação)
@@ -177,7 +207,7 @@ router.put("/update-character/:id", verifyToken, validateUpdateCharacter, update
  *         description: Não autorizado
  */
 // Create new character (requires authentication)
-router.post('/create-character/:usuarioId', verifyToken, validateCreateCharacter, createCharacter);
+router.post('/create-character/:usuarioId', verifyToken, validateCreateCharacter, createCharacterHandler);
 
 /**
  * @swagger
@@ -279,5 +309,33 @@ router.get('/character-views/:id', verifyToken, validateCharacterId, getCharacte
  */
 // Count character views
 router.post('/increment-chat-views/:id', verifyToken, validateCharacterId, countCharacterView);
+
+/**
+ * @swagger
+ * /character/increment-chat-views-public/{publicId}:
+ *   post:
+ *     summary: Incrementar contador de visualizações por public_id (Requer autenticação)
+ *     tags:
+ *       - Characters
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: publicId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Visualização incrementada
+ *       400:
+ *         description: publicId inválido
+ *       401:
+ *         description: Não autorizado
+ *       404:
+ *         description: Personagem não encontrado
+ */
+// Count character views by public_id
+router.post('/increment-chat-views-public/:publicId', verifyToken, countCharacterViewByPublicId);
 
 export default router;

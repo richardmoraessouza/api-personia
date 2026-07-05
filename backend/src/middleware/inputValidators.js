@@ -57,6 +57,16 @@ export const validateRegister = [
     .matches(/^[a-zA-Z0-9\s\-àáäâèéëêìíïîòóöôùúüûñç]+$/i)
     .withMessage('Nome contém caracteres inválidos'),
   
+  body('username')
+    .trim()
+    .notEmpty()
+    .withMessage('Username é obrigatório')
+    .isLength({ min: 3, max: 30 })
+    .withMessage('Username deve ter entre 3 e 30 caracteres')
+    .customSanitizer(value => sanitizeText(value))
+    .matches(/^[a-zA-Z0-9._-]+$/)
+    .withMessage('Username contém caracteres inválidos'),
+
   body('imgPerfil')
     .optional()
     .trim()
@@ -106,12 +116,19 @@ export const validateUsuarioId = [
 ];
 
 export const validateCharacterSearch = [
-  query('nomePersonagem')
-    .trim()
-    .notEmpty()
-    .withMessage('Nome do personagem é obrigatório')
-    .isLength({ min: 1, max: 100 })
-    .withMessage('Nome deve ter entre 1 e 100 caracteres'),
+  query()
+    .custom((value, { req }) => {
+      const nomePersonagem = req.query.nomePersonagem || req.query.q;
+      const searchTerm = typeof nomePersonagem === 'string' ? nomePersonagem.trim() : '';
+
+      if (!searchTerm) {
+        throw new Error('Nome do personagem é obrigatório');
+      }
+      if (searchTerm.length < 1 || searchTerm.length > 100) {
+        throw new Error('Nome deve ter entre 1 e 100 caracteres');
+      }
+      return true;
+    }),
   
   handleValidationErrors
 ];
@@ -228,9 +245,9 @@ export const validateUpdateCharacter = [
 
 export const validateChatMessage = [
   param('personagemId')
-    .isInt({ min: 1 })
-    .withMessage('ID do personagem inválido')
-    .toInt(),
+    .trim()
+    .notEmpty()
+    .withMessage('ID do personagem inválido'),
   
   body('message')
     .trim()
@@ -299,9 +316,9 @@ export const validateRecentCharacter = [
     .toInt(),
   
   param('personagemId')
-    .isInt({ min: 1 })
-    .withMessage('ID do personagem inválido')
-    .toInt(),
+    .trim()
+    .notEmpty()
+    .withMessage('ID do personagem inválido'),
   
   handleValidationErrors
 ];

@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import * as authRepository from '../repositories/authRepository.js';
 import { AUTH_RULES } from '../../../rules/authRules.js';
+import { validateUsername } from '../../../utils/usernameValidation.js';
 
 dotenv.config();
 
@@ -11,12 +12,22 @@ dotenv.config();
 // =========================
 
 export const createUserService = async (data) => {
-  const { gmail, nome, imgPerfil } = data;
+  const { gmail, nome, imgPerfil, username } = data;
+  const normalizedUsername = validateUsername(username);
+  const nomeFinal = normalizedUsername || nome?.toString().trim();
+
+  const existingUser = await authRepository.findUserByUsername(normalizedUsername);
+  if (existingUser) {
+    const error = new Error('Esse username já está em uso.');
+    error.statusCode = 409;
+    throw error;
+  }
 
   const user = await authRepository.createUser({
     gmail,
-    nome,
-    imgPerfil
+    nome: nomeFinal,
+    imgPerfil,
+    username: normalizedUsername
   });
 
   const token = jwt.sign(
@@ -36,7 +47,8 @@ export const createUserService = async (data) => {
       id: user.id,
       nome: user.nome,
       gmail: user.gmail,
-      foto_perfil: user.foto_perfil
+      foto_perfil: user.foto_perfil,
+      username: user.username
     }
   };
 };

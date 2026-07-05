@@ -18,7 +18,7 @@ export const getUserById = async (req, res) => {
         error: "User not found"
       })
     }
-    
+
     return res.status(500).json({
       error: "Internal server error while searching profile."
     });
@@ -84,6 +84,14 @@ export const editProfile = async (req, res) => {
       return res.status(400).json({ error: "Name is required and cannot be empty." });
     }
 
+    if (err.statusCode === 409) {
+      return res.status(409).json({ error: err.message });
+    }
+
+    if (err.statusCode === 400) {
+      return res.status(400).json({ error: err.message });
+    }
+
     if (err.message === 'USUARIO_NAO_ENCONTRADO') {
       return res.status(404).json({ error: "User not found" });
     }
@@ -118,7 +126,7 @@ export const getNameOtherUser = async (req, res) => {
 // Shows user data in mini profile
 export const getDataMiniProfile = async (req, res) => {
   const { usuarioId } = req.params;
-  
+
   if (!usuarioId || isNaN(usuarioId)) {
     return res.status(400).json({ error: 'Invalid user ID.' });
   }
@@ -141,18 +149,81 @@ export const getDataMiniProfile = async (req, res) => {
 export const updateFrame = async (req, res) => {
   const { usuarioId } = req.params;
   const { frame } = req.body;
+  const authenticatedUserId = Number(req.user?.id);
 
   if (!usuarioId || isNaN(usuarioId)) {
     return res.status(400).json({ error: 'Invalid user ID.' });
   }
 
+  if (!Number.isInteger(authenticatedUserId) || authenticatedUserId !== Number(usuarioId)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
   try {
     const updatedFrame = await userService.updateFrameService(usuarioId, frame);
 
-    return res.status(200).json({ frame: updatedFrame });
+    return res.status(200).json(updatedFrame);
   } catch (err) {
     console.error('Error updating frame:', err);
+
+    if (err.message === 'FRAME_INVALIDA') {
+      return res.status(400).json({ error: 'Frame inválida.' });
+    }
+
+    if (err.message === 'FRAME_NAO_DESBLOQUEADA') {
+      return res.status(403).json({ error: 'Essa moldura ainda não foi desbloqueada.' });
+    }
+
     return res.status(500).json({ error: 'Internal server error' });
   }
-    
+}
+
+// search user level by ID
+export const getLevelUser = async (req, res) => {
+  const { usuarioId } = req.params;
+  const authenticatedUserId = Number(req.user?.id);
+
+  if (!usuarioId || isNaN(usuarioId)) {
+    return res.status(400).json({ error: 'Invalid user ID.' });
+  }
+
+  if (!Number.isInteger(authenticatedUserId) || authenticatedUserId !== Number(usuarioId)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  try {
+    const levelUser = await userService.getLevelUserService(usuarioId);
+
+    if (!levelUser) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    return res.status(200).json({ nivel: levelUser });
+  } catch (err) {
+    console.error('Error searching user level:', err);
+    return res.status(500).json({ error: 'Error searching user level.' });
+  }
+}
+
+// Search user xp by ID
+export const getXpUser = async (req, res) => {
+  const { usuarioId } = req.params;
+  const authenticatedUserId = Number(req.user?.id);
+
+  if (!usuarioId || isNaN(usuarioId)) {
+    return res.status(400).json({ error: 'Invalid user ID.' });
+  }
+
+  if (!Number.isInteger(authenticatedUserId) || authenticatedUserId !== Number(usuarioId)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  try {
+    const xpUser = await userService.getXpUserService(usuarioId);
+
+    return res.status(200).json({ xp: xpUser });
+  } catch (error) {
+    console.error('Error searching user xp:', error);
+    return res.status(500).json({ error: 'Error searching user xp.' });
+  }
 }

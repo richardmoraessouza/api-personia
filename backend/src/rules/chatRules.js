@@ -87,6 +87,32 @@ export function stripLeadingEcho(text) {
   return remainder.length > 3 ? remainder : text;
 }
 
+export const EMOTION_TAG_REGEX = /\[EMOTION:([\w_]+)\]/i;
+
+export const EMOTION_INSTRUCTIONS = `
+REGRA DE EMOTION TAG — USE APENAS QUANDO SENTIR DE VERDADE:
+Se e somente se o personagem estiver sentindo uma emoção forte e clara naquele momento, adicione UMA das tags abaixo no final da resposta. Se a conversa for neutra ou casual, NÃO adicione nenhuma tag.
+
+- Irritado, xingando ou provocado: [EMOTION:bravo]
+- Desanimado, magoado ou chorando: [EMOTION:triste]
+- Rindo, animado ou amigável: [EMOTION:feliz]
+- Flertando, elogiando ou tímido: [EMOTION:apaixonado]
+- Sentindo ciúmes: [EMOTION:ciumento]
+- Sentindo saudade: [EMOTION:com_saudade]
+- Envergonhado, sem jeito, vermelho: [EMOTION:envergonhado]
+- Nervoso, coração acelerado: [EMOTION:nervoso]
+- Eufórico, animadíssimo: [EMOTION:animado]
+- À vontade, relaxado: [EMOTION:confortavel]
+- Solitário, se sentindo sozinho: [EMOTION:sozinho]
+- Protegido pelo usuário: [EMOTION:protegido]
+- Curioso sobre o usuário: [EMOTION:curioso]
+- Lisonjeado, se sentindo especial: [EMOTION:lisonjeado]
+- Surpreso com algo: [EMOTION:surpreso]
+
+Exemplos:
+- Usuário provocou → "para com isso suas criança kkkk [EMOTION:bravo]"
+- Conversa neutra ("oi", "tudo bem?") → "oi! tudo sim e vc?" (SEM tag)
+`;
 /**
  * Regras de prompt para personagem FICCIONAL
  */
