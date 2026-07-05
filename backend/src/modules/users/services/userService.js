@@ -1,14 +1,17 @@
 import * as userRepository from "../repositories/userRepository.js";
 import * as cacheService from "../../../services/cacheService.js";
+import { validateUsername } from "../../../utils/usernameValidation.js";
 
 /**
  * CONFIGURAÇÃO DE CACHE
  * TTLs em segundos
  */
 const CACHE_TTL = {
-  USER_NAME: 30 * 60,       // 30 minutos para nomes de usuário (dados imutáveis)
-  USER_PROFILE: 15 * 60,    // 15 minutos para perfil
+  USER_NAME: 30 * 60,
+  USER_PROFILE: 15 * 60,
 };
+
+const MAX_XP_PER_REQUEST = 10000;
 
 // Search user by ID
 export const getUserById = async (id) => {
@@ -29,7 +32,7 @@ export const getNameUserService = async (usuarioId) => {
     }
 
     const cacheKey = `user:name:${usuarioId}`;
-    
+
     return await cacheService.cacheWithFallback(
         cacheKey,
         () => userRepository.findNameUserById(usuarioId),
@@ -38,10 +41,10 @@ export const getNameUserService = async (usuarioId) => {
 }
 
 // Get another user's public profile data
-export const getOtherUserService = async (id) => {
+export const getOtherUserService = async (identifier) => {
 
-    const OtherUser = await userRepository.findDateOtherUserByid(id);
-    
+    const OtherUser = await userRepository.findDateOtherUserByid(identifier);
+
     if (!OtherUser) {
         throw new Error('User not found');
     }
@@ -49,9 +52,10 @@ export const getOtherUserService = async (id) => {
     return OtherUser;
 }
 
-// Update user profile
+// update user profile
 export const editProfileService = async (id, profileData) => {
-    const { nome, foto_perfil, descricao } = profileData || {};
+    const { nome, foto_perfil, descricao, username } = profileData || {};
+
     const trimmedName = nome?.toString().trim();
 
     if (!id) {
@@ -62,21 +66,36 @@ export const editProfileService = async (id, profileData) => {
         throw new Error('NOME_OBRIGATORIO');
     }
 
+    let normalizedUsername;
+
+    if (username !== undefined) {
+        normalizedUsername = validateUsername(username, { required: false });
+
+        const existingUser =
+            await userRepository.findUserByUsernameExceptSelf(normalizedUsername, id);
+
+        if (existingUser) {
+            const error = new Error('Esse username já está em uso.');
+            error.statusCode = 409;
+            throw error;
+        }
+    }
+
     const updateProfile = await userRepository.updateProfileUserById(id, {
         nome: trimmedName,
         foto_perfil: foto_perfil === undefined ? null : foto_perfil,
-        descricao: descricao === undefined ? null : descricao
+        descricao: descricao === undefined ? null : descricao,
+        username: normalizedUsername === undefined ? null : normalizedUsername
     });
 
     if (!updateProfile) {
         throw new Error('USUARIO_NAO_ENCONTRADO');
     }
 
-    // Invalida cache do nome ao editar perfil
     await cacheService.cacheDel(`user:name:${id}`);
 
     return updateProfile;
-}
+};
 
 // Get another user's name by ID (com cache)
 export const getNameOtherUserService = async (usuarioId) => {
@@ -85,7 +104,7 @@ export const getNameOtherUserService = async (usuarioId) => {
     }
 
     const cacheKey = `user:name:${usuarioId}`;
-    
+
     return await cacheService.cacheWithFallback(
         cacheKey,
         () => userRepository.findNameOtherUser(usuarioId),
@@ -106,18 +125,41 @@ export const findNameOtherUser = async (usuarioId) => {
 
 // update frame user
 export const updateFrameService = async (usuarioId, frame) => {
-    const frameUser = await userRepository.updateFrameUserById(usuarioId, frame);
+    const parsedUserId = Number(usuarioId);
+    if (!parsedUserId || Number.isNaN(parsedUserId)) {
+        throw new Error('ID_INVALIDO');
+    }
 
-    if (!frameUser) {
+    const normalizedFrame = frame === undefined || frame === null ? null : String(frame).trim();
+    const finalFrame = normalizedFrame === '' ? null : normalizedFrame;
+
+    if (finalFrame) {
+        const allowedFrames = new Set(userRepository.getFrameUnlockCatalog().map(({ frameName }) => frameName));
+        const unlockedFrames = await userRepository.getUnlockedFramesForUser(parsedUserId);
+
+        if (!allowedFrames.has(finalFrame)) {
+            throw new Error('FRAME_INVALIDA');
+        }
+
+        if (!unlockedFrames.includes(finalFrame)) {
+            throw new Error('FRAME_NAO_DESBLOQUEADA');
+        }
+    }
+
+    const frameUser = await userRepository.updateFrameUserById(parsedUserId, finalFrame);
+
+    if (frameUser === undefined) {
         throw new Error('USUARIO_NAO_ENCONTRADO');
     }
 
-    await cacheService.cacheDel(`user:miniprofile:${usuarioId}`);
-    await cacheService.cacheDel(`user:name:${usuarioId}`);
-    await cacheService.cacheDel(`followers:${usuarioId}`);
-    await cacheService.cacheDel(`following:${usuarioId}`);
+    const unlockedFrames = await userRepository.getUnlockedFramesForUser(parsedUserId);
 
-    return frameUser;
+    await cacheService.cacheDel(`user:miniprofile:${parsedUserId}`);
+    await cacheService.cacheDel(`user:name:${parsedUserId}`);
+    await cacheService.cacheDel(`followers:${parsedUserId}`);
+    await cacheService.cacheDel(`following:${parsedUserId}`);
+
+    return { frame: frameUser, unlocked_frames: unlockedFrames };
 }
 
 // Shows user data in mini profile
@@ -141,3 +183,40 @@ export const getDataMiniProfileService = async (usuarioId) => {
 
     return miniProfile;
 }
+
+// search user level by ID
+export const getLevelUserService = async (usuarioId) => {
+    if (!usuarioId || isNaN(usuarioId)) {
+        throw new Error('ID_INVALIDO');
+    }
+
+    const levelUser = await userRepository.findLevelUser(usuarioId);
+
+    return levelUser ? levelUser.nivel : null;
+}
+
+// Search user xp by ID
+export const getXpUserService = async (usuarioId) => {
+    if (!usuarioId || isNaN(usuarioId)) {
+        throw new Error('ID_INVALIDO');
+    }
+
+    const xpUser = await userRepository.findXpUser(usuarioId);
+
+    return xpUser ? xpUser.xp : null;
+}
+
+// Add XP to user
+export const addXpUserService = async (usuarioId, xpGanho) => {
+  const parsedUserId = Number(usuarioId);
+  const parsedXp = Number(xpGanho);
+
+  if (!parsedUserId || Number.isNaN(parsedUserId)) throw new Error('ID_INVALIDO');
+  if (!Number.isFinite(parsedXp) || parsedXp <= 0 || parsedXp > MAX_XP_PER_REQUEST) throw new Error('XP_INVALIDO');
+
+  const updated = await userRepository.updateXpAndLevel(parsedUserId, parsedXp);
+
+  if (!updated) throw new Error('USUARIO_NAO_ENCONTRADO');
+
+  return updated;
+};

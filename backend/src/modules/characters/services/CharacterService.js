@@ -30,6 +30,16 @@ export const getDataCharacterById = async (id) => {
   );
 };
 
+// Get character data by public_id with caching
+export const getDataCharacterByPublicId = async (publicId) => {
+  const cacheKey = `character:public_id:${publicId}`;
+  return await cacheService.cacheWithFallback(
+    cacheKey,
+    () => personRepository.findDataCharacterByPublicId(publicId),
+    CACHE_TTL.CHARACTER
+  );
+};
+
 // Search for characters by name and tag with caching
 export const getCharactersSearchService = async (nomePersonagem, tagSlug = '') => {
   const lowerTerm = nomePersonagem.toLowerCase();
@@ -157,13 +167,41 @@ export const registerUniqueViewService = async (usuarioId, personajeId) => {
   return false;
 };
 
+// Register unique view by public_id
+export const registerUniqueViewServiceByPublicId = async (usuarioId, publicId) => {
+  if (!usuarioId || !publicId) {
+    throw new Error('INVALID_PARAMETERS');
+  }
+
+  // Get character ID from public_id
+  const character = await personRepository.findDataCharacterByPublicId(publicId);
+  
+  if (!character || !character.id) {
+    throw new Error('CHARACTER_NOT_FOUND');
+  }
+
+  const characterId = character.id;
+  const isFirstTime = await personRepository.registerViewHistory(usuarioId, characterId);
+
+  if (isFirstTime === 1) {
+    await personRepository.incrementViews(characterId); 
+    
+    // Invalida caches de dados do personagem
+    await cacheService.cacheDel(`character:id:${characterId}`);
+    await cacheService.cacheDel(`character:public_id:${publicId}`);
+    return true;
+  }
+
+  return false;
+};
+
 // Get popular week characters with Redis cache
 export const getPopularWeekService = async () => {
   const cacheKey = 'popular:week:characters';
 
   return await cacheService.cacheWithFallback(
     cacheKey,
-    () => personRepository.findPopularWeek(),
+    () => personRepository.getPopularWeekCharacters(),
     CACHE_TTL.POPULAR
   );
 };

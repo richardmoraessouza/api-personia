@@ -9,7 +9,12 @@ if (!JWT_SECRET) {
 }
 
 export const verifyToken = (req, res, next) => {
-    const authHeader = req.headers.authorization || req.headers['x-access-token'] || req.headers['token'];
+    const authHeader =
+        req.headers.authorization ||
+        req.headers['x-access-token'] ||
+        req.headers['token'] ||
+        req.body?.token ||
+        req.query?.token;
 
     if (!authHeader) {
         return res.status(401).json({ error: 'Token não fornecido', code: 'NO_TOKEN' });

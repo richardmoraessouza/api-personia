@@ -45,6 +45,67 @@ export async function getCharacterById(id) {
 }
 
 /**
+ * Search character by public_id in database or cache
+ */
+export async function getCharacterByPublicId(publicId) {
+  const now = Date.now();
+
+  // Check cache
+  if (personagemCache[publicId]) {
+    const cached = personagemCache[publicId];
+    if (now - cached.timestamp < CACHE_TTL) {
+      return cached.data;
+    }
+    delete personagemCache[publicId];
+  }
+
+  // Search in database
+  const result = await db.query(
+  `SELECT 
+      id, nome, obra, genero, personalidade,
+      historia, regras, tipo_personagem, fotoia, bio,
+      descricao, aparencia, gostos, desgostos, objetivos,
+      primeiramensagem, relacaousuario, cenario,
+      conversation_style, quick_prompt, is_modo_rapido
+   FROM personia2.personagens 
+   WHERE public_id = $1`,
+  [publicId]
+  );
+
+  if (result.rows.length === 0) return null;
+
+  const personagem = result.rows[0];
+
+  // Store in cache
+  personagemCache[publicId] = {
+    data: personagem,
+    timestamp: now
+  };
+
+  return personagem;
+}
+
+/**
+ * Smart function to get character by ID or public_id
+ * Detects which type it is and calls the appropriate function
+ */
+export async function getCharacterByIdOrPublicId(identifier) {
+  if (identifier === undefined || identifier === null || identifier === '') {
+    return null;
+  }
+
+  const numericId = Number(identifier);
+  if (!isNaN(numericId) && String(numericId) === String(identifier)) {
+    const characterById = await getCharacterById(numericId);
+    if (characterById) {
+      return characterById;
+    }
+  }
+
+  return await getCharacterByPublicId(identifier);
+}
+
+/**
  * Get an existing chat ID or create one if it doesn't exist (Idempotent)
  * @param {number} userId - User ID
  * @param {number} characterId - Character ID
@@ -162,6 +223,43 @@ export const getMessageById = async (messageId) => {
     [messageId]
   );
   return result.rows[0] || null;
+};
+
+/**
+ * Accumulate conversation time for a user+character pair
+ * @param {number} userId
+ * @param {number} characterId
+ * @param {number} seconds
+ * @returns {Promise<Object>} Updated row
+ */
+export const addConversationTime = async (userId, characterId, seconds) => {
+  const result = await db.query(
+    `INSERT INTO personia2.conversation_time (usuario_id, personagem_id, total_seconds, updated_at)
+     VALUES ($1, $2, $3, NOW())
+     ON CONFLICT (usuario_id, personagem_id)
+     DO UPDATE SET
+       total_seconds = personia2.conversation_time.total_seconds + EXCLUDED.total_seconds,
+       updated_at    = NOW()
+     RETURNING *`,
+    [userId, characterId, seconds]
+  );
+  return result.rows[0];
+};
+
+/**
+ * Get total conversation time for a user+character pair
+ * @param {number} userId
+ * @param {number} characterId
+ * @returns {Promise<Object>} Row with total_seconds or default zero
+ */
+export const getConversationTime = async (userId, characterId) => {
+  const result = await db.query(
+    `SELECT total_seconds, updated_at
+     FROM personia2.conversation_time
+     WHERE usuario_id = $1 AND personagem_id = $2`,
+    [userId, characterId]
+  );
+  return result.rows[0] || { total_seconds: 0 };
 };
 
 /**

@@ -1,11 +1,13 @@
 import db from '../../../config/db.js';
 import { findDataCharacterById } from '../../characters/repositories/characterRepository.js';
 
+
 // search popular characters of the week
 export const findPopularWeek = async () => {
     const result = await db.query(`
      SELECT 
     p.id, 
+    p.public_id,
     p.nome, 
     p.fotoia, 
     p.tipo_personagem, 
@@ -53,6 +55,7 @@ export const getRecommendationsByWeight = async (usuarioId, page = 1, limit = 20
   const query = `
     SELECT 
       p.id, 
+      p.public_id,
       p.nome, 
       p.fotoia, 
       p.bio, 

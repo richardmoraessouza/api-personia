@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as chatController from '../controllers/chatController.js';
+import { saveTime, getTime } from '../controllers/chatController.js';
 import { verifyToken } from '../../../middleware/verifyToken.js';
 import { chatLimiter } from '../../../middleware/rateLimiter.js';
 import { validateChatMessage, validateCharacterId } from '../../../middleware/inputValidators.js';
@@ -253,5 +254,82 @@ router.patch('/messages/:id/pin', verifyToken, chatController.togglePinMessage);
  *         description: Lista de mensagens fixadas
  */
 router.get('/chats/:chatId/pinned', verifyToken, chatController.getPinnedMessages);
+
+
+/**
+ * @swagger
+ * /api/conversation-time:
+ *   post:
+ *     summary: Save elapsed conversation time
+ *     tags: [ConversationTime]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - characterId
+ *               - seconds
+ *             properties:
+ *               characterId:
+ *                 type: integer
+ *                 example: 42
+ *               seconds:
+ *                 type: integer
+ *                 example: 300
+ *     responses:
+ *       200:
+ *         description: Time saved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 total_seconds:
+ *                   type: integer
+ *       400:
+ *         description: Missing required fields
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/conversation-time', verifyToken, saveTime);
+
+/**
+ * @swagger
+ * /api/conversation-time/{characterId}:
+ *   get:
+ *     summary: Get total conversation time with a character
+ *     tags: [ConversationTime]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: characterId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Character ID
+ *     responses:
+ *       200:
+ *         description: Total time in seconds
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 total_seconds:
+ *                   type: integer
+ *                 updated_at:
+ *                   type: string
+ *                   format: date-time
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/conversation-time/:characterId', verifyToken, getTime);
 
 export default router;

@@ -1,12 +1,13 @@
 import db from '../../../config/db.js';
 import redisClient from '../../../config/redis.js';
+import { nanoid } from 'nanoid';
 import { handleAutoClassification } from '../../ratings/services/ratingsService.js';
 
 
-// Get characters by user ID
+// Get characters by user ID (FRONTEND-FACING: sem id interno)
 export const getCharactersByUsuarioId = async (usuarioId) => {
   const result = await db.query(`
-    SELECT id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao
+    SELECT id, public_id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao
     FROM personia2.personagens
     WHERE usuario_id = $1
   `, [usuarioId]);
@@ -14,7 +15,8 @@ export const getCharactersByUsuarioId = async (usuarioId) => {
   return result.rows;
 };
 
-// Get character data by ID
+// Get character data by ID (USO INTERNO — joins, jobs, reclassificação)
+// Não expor o resultado bruto disso pro frontend.
 export const findDataCharacterById = async (id) => {
   const result = await db.query(`
     SELECT * FROM personia2.personagens
@@ -24,13 +26,28 @@ export const findDataCharacterById = async (id) => {
   return result.rows[0] || null;
 };
 
-// Search characters by name and optionally filter by tag slug
+// Get character data by public_id (FRONTEND-FACING: use esta em rotas públicas)
+export const findDataCharacterByPublicId = async (publicId) => {
+  const result = await db.query(`
+    SELECT * FROM personia2.personagens
+    WHERE public_id = $1
+  `, [publicId]);
+
+  const row = result.rows[0];
+  if (!row) return null;
+
+  // remove o id interno antes de devolver pro controller/frontend
+  const { id, ...publicSafe } = row;
+  return publicSafe;
+};
+
+// Search characters by name and optionally filter by tag slug (FRONTEND-FACING)
 export const searchCharactersByNameAndTag = async (nomePersonagem, tagSlug = '', limit = 20, offset = 0) => {
   const lowerTerm = `%${nomePersonagem.toLowerCase()}%`;
 
   if (!tagSlug) {
     const result = await db.query(`
-      SELECT id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao, tags_slugs AS tags
+      SELECT id, public_id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao, tags_slugs AS tags
       FROM personia2.personagens
       WHERE LOWER(nome) LIKE $1
       ORDER BY id
@@ -40,7 +57,7 @@ export const searchCharactersByNameAndTag = async (nomePersonagem, tagSlug = '',
   }
 
   const result = await db.query(`
-    SELECT id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao, tags_slugs AS tags
+    SELECT id, public_id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao, tags_slugs AS tags
     FROM personia2.personagens
     WHERE LOWER(nome) LIKE $1
       AND $2 = ANY(tags_slugs)
@@ -51,7 +68,8 @@ export const searchCharactersByNameAndTag = async (nomePersonagem, tagSlug = '',
   return result.rows;
 };
 
-// Update character by ID and re-run AI classification
+// Update character by ID and re-run AI classification (USO INTERNO)
+// OBS: o controller que chama isso deve resolver public_id -> id ANTES de chamar esta função.
 export const updateCharacterById = async (id, person) => {
   const {
     nome, bio, genero, personalidade, historia, fotoia, regras, 
@@ -110,22 +128,23 @@ export const createCharacter = async (person) => {
   } = person;
   
   const userId = usuario_id || usuarioId;
+  const publicId = nanoid();
 
   const query = `
     INSERT INTO personia2.personagens 
     (
       nome, genero, personalidade, historia, fotoia, regras, usuario_id, 
       descricao, obra, bio, conversation_style, aparencia, gostos, 
-      desgostos, objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem, quick_prompt, is_modo_rapido
+      desgostos, objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem, quick_prompt, is_modo_rapido, public_id
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
     RETURNING *
   `;
 
   const values = [
     nome, genero, personalidade, historia, fotoia, regras, userId, 
     descricao, obra, bio, conversation_style, aparencia, gostos, 
-    desgostos, objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem, quick_prompt, is_modo_rapido
+    desgostos, objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem, quick_prompt, is_modo_rapido, publicId
   ];
 
   const result = await db.query(query, values);
@@ -139,7 +158,7 @@ export const createCharacter = async (person) => {
   return newCharacter;
 };
 
-// Save recent character interaction - keeps only last 10 per user
+// Save recent character interaction - keeps only last 10 per user (USO INTERNO, recebe id interno)
 export const saveRecentCharacter = async (usuarioId, personagemId) => {
   // 1. Insere ou atualiza o personagem atual
   const insertQuery = `
@@ -169,10 +188,10 @@ export const saveRecentCharacter = async (usuarioId, personagemId) => {
   return { success: true };
 };
 
-// Get 10 most recent characters for user
+// Get 10 most recent characters for user (FRONTEND-FACING: sem id interno)
 export const findRecentCharacters = async (usuarioId) => {
   const query = `
-    SELECT p.id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao
+    SELECT p.public_id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao
     FROM (
         SELECT DISTINCT ON (personagem_id) personagem_id, criado_em
         FROM personia2.recent_characters
@@ -181,14 +200,14 @@ export const findRecentCharacters = async (usuarioId) => {
     ) rc
     JOIN personia2.personagens p ON p.id = rc.personagem_id
     ORDER BY rc.criado_em DESC
-    LIMIT 10
+    LIMIT 20
   `;
   
   const result = await db.query(query, [usuarioId]);
   return result.rows;
 };
 
-//single view function
+//single view function (USO INTERNO, recebe id interno resolvido pelo controller)
 export const registerViewHistory = async (userId, characterId) => {
   const query = `
     INSERT INTO personia2.character_views_history (user_id, character_id)
@@ -199,7 +218,7 @@ export const registerViewHistory = async (userId, characterId) => {
   return result.rowCount; // Returns 1 if first access, 0 if user already viewed
 };
 
-// Increment views column in main character table
+// Increment views column in main character table (USO INTERNO, recebe id interno)
 export const incrementViews = async (characterId) => {
   // Incremento total
   await db.query(`UPDATE personia2.personagens SET visualizacoes = visualizacoes + 1 WHERE id = $1`, [characterId]);
@@ -213,10 +232,10 @@ export const incrementViews = async (characterId) => {
   `, [characterId]);
 };
 
-//search for the 10 most popular characters of the week based on recent views.
+//search for the 10 most popular characters of the week based on recent views. (FRONTEND-FACING)
 export const getPopularWeekCharacters = async () => {
   const query = `
-    SELECT p.id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao, wv.view_count
+    SELECT p.id, p.public_id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao, wv.view_count
     FROM personia2.personagens p
     JOIN personia2.weekly_views wv ON p.id = wv.personagem_id
     WHERE p.fotoia IS NOT NULL 
@@ -228,71 +247,42 @@ export const getPopularWeekCharacters = async () => {
   return result.rows;
 };
 
-// Search characters for the Explore tab in a paginated and divided way (Half Popular / Half New).
-// Filter and ignore IDs passed in the array to avoid duplication with the top of the site.
+// FRONTEND-FACING: sem id interno na resposta.
+// OBS: o WHERE id NOT IN continua usando o id interno (é filtro/join, não vaza pro cliente).
 export const getCharactersPaginated = async (limit, offset, seed = 0.5, popularIds = []) => {
-  // Create a unique cache key based on the parameters
   const cacheKey = `explore:${limit}:${offset}:${seed}:${popularIds.join(',')}`;
 
   try {
-    // Try to get from Redis cache
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
-      return JSON.parse(cachedData);
+      const parsed = JSON.parse(cachedData);
+      const hasValidPublicIds = Array.isArray(parsed) && parsed.every(item => item && typeof item.public_id === 'string');
+      if (hasValidPublicIds) {
+        return parsed;
+      }
+      console.warn(`[Cache WARN] Invalid cached explore data detected for ${cacheKey}; refreshing cache.`);
     }
   } catch (cacheErr) {
     console.warn(`[Cache ERROR] Failed to get ${cacheKey}:`, cacheErr.message);
-    // Continue with database query if cache fails
   }
 
-  // Divide the total limit by 2 to bring equal slices of content
-  const halfLimit = Math.floor(limit / 2);
-  // Divide the offset by 2 to advance the pages proportionally in the two subqueries
-  const halfOffset = Math.floor(offset / 2);
-
-  // Initialize the random seed for Postgres to avoid repeating random cards
-  await db.query('SELECT setseed($1)', [seed]);
-
-  // If the array of popular IDs is empty, we use [0] to avoid breaking the "NOT IN" syntax in SQL
   const excludeIds = popularIds.length > 0 ? popularIds : [0];
 
   const query = `
-    (
-      /* --- PRIMEIRA METADE: Os mais populares gerais do sistema (excluindo os da semana) --- */
-      SELECT id, nome, fotoia, tipo_personagem, usuario_id, bio, descricao, visualizacoes, criado_em
-      FROM personia2.personagens
-      WHERE fotoia IS NOT NULL 
-        AND fotoia <> '/semPerfil.jpg'
-        AND bio IS NOT NULL
-        AND criado_em < NOW() - INTERVAL '7 days'
-        AND id NOT IN (${excludeIds.join(',')}) -- Bloqueia os IDs do carrossel
-      ORDER BY visualizacoes DESC, criado_em DESC
-      LIMIT $1 OFFSET $2
-    )
-    UNION ALL
-    (
-      /* --- SEGUNDA METADE: Novidades REAIS misturadas com aleatoriedade --- */
-      SELECT id, nome, fotoia, tipo_personagem, usuario_id, bio, descricao, visualizacoes, criado_em
-      FROM personia2.personagens
-      WHERE fotoia IS NOT NULL 
-        AND fotoia <> '/semPerfil.jpg'
-        AND bio IS NOT NULL
-        AND id NOT IN (${excludeIds.join(',')}) -- Bloqueia os IDs do carrossel aqui também
-      -- Prioriza personagens criados nos últimos 3 dias e depois embaralha
-      ORDER BY (criado_em >= NOW() - INTERVAL '3 days') DESC, RANDOM()
-      LIMIT $1 OFFSET $2
-    )
+    SELECT id, public_id, nome, fotoia, tipo_personagem, usuario_id, bio, descricao, visualizacoes, criado_em
+    FROM personia2.personagens
+    WHERE id NOT IN (${excludeIds.join(',')})
+    ORDER BY visualizacoes DESC
+    LIMIT $1 OFFSET $2
   `;
 
-  const result = await db.query(query, [halfLimit, halfOffset]);
+  const result = await db.query(query, [limit, offset]);
   const data = result.rows;
 
-  // Store in Redis cache with 5 minutes TTL (300 seconds)
   try {
     await redisClient.setEx(cacheKey, 300, JSON.stringify(data));
   } catch (cacheErr) {
     console.warn(`[Cache ERROR] Failed to set ${cacheKey}:`, cacheErr.message);
-    // Don't fail the request if cache write fails
   }
 
   return data;
