@@ -1,12 +1,11 @@
 import db from '../../../config/db.js';
-import { findDataCharacterById } from '../../characters/repositories/characterRepository.js';
+import { findDataCharacterById, resolveCharacterId } from '../../characters/repositories/characterRepository.js';
 
 
 // search popular characters of the week
 export const findPopularWeek = async () => {
     const result = await db.query(`
      SELECT 
-    p.id, 
     p.public_id,
     p.nome, 
     p.fotoia, 
@@ -15,13 +14,10 @@ export const findPopularWeek = async () => {
     p.bio, 
     p.descricao, 
     p.visualizacoes,
+    p.tags_slugs AS tags,
     
-    -- 1. Conta quantas linhas existem na sua tabela de favoritos para cada personagem
     COUNT(f.id) AS quantidade_favoritos,
     
-    -- 2. CÁLCULO DO SCORE DA SEMANA:
-    -- Cada visualização soma 1 ponto
-    -- Cada favorito ganha um peso enorme de 15 pontos (mostra que o usuário gostou muito)
     (
       (COALESCE(p.visualizacoes, 0) * 1) + 
       (COUNT(f.id) * 15)
@@ -29,17 +25,12 @@ export const findPopularWeek = async () => {
 
     FROM personia2.personagens p
 
-    -- Faz o vínculo com a sua tabela de favoritos. 
-    -- ATENÇÃO: Substitua 'personagens_favoritos' pelo nome REAL que você deu para essa tabela no banco
     LEFT JOIN personia2.favoritos f ON p.id = f.personagem_id
 
-    -- Filtra os personagens que foram criados nos últimos 7 dias (Meteoro da semana)
     WHERE p.criado_em >= NOW() - INTERVAL '7 days'
 
-    -- Agrupa os resultados pelo ID do personagem para que o COUNT consiga calcular os totais
-    GROUP BY p.id
+    GROUP BY p.id, p.public_id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao, p.visualizacoes, p.tags_slugs
 
-    -- Joga os maiores Scores para o topo e usa as visualizações como critério de desempate
     ORDER BY score_popularidade DESC, p.visualizacoes DESC
     LIMIT 10;
         `);
@@ -54,14 +45,13 @@ export const getRecommendationsByWeight = async (usuarioId, page = 1, limit = 20
 
   const query = `
     SELECT 
-      p.id, 
       p.public_id,
       p.nome, 
       p.fotoia, 
       p.bio, 
       p.usuario_id, 
       p.visualizacoes,
-      -- Somamos os scores das tags para dar um "Super Score" caso combine com mais de uma tag
+      p.tags_slugs AS tags,
       SUM(uts.score) AS score_total
     FROM personia2.personagens p
     JOIN personia2.user_tag_scores uts ON uts.tag_slug = ANY(p.tags_slugs)
@@ -69,11 +59,9 @@ export const getRecommendationsByWeight = async (usuarioId, page = 1, limit = 20
     AND p.id NOT IN (
       SELECT personagem_id FROM personia2.recent_characters WHERE usuario_id = $1
     )
-    -- O GROUP BY junta todas as linhas duplicadas do mesmo personagem em uma só
-    GROUP BY p.id, p.nome, p.fotoia, p.bio, p.usuario_id, p.visualizacoes
+    GROUP BY p.id, p.nome, p.fotoia, p.bio, p.usuario_id, p.visualizacoes, p.tags_slugs
     ORDER BY score_total DESC, p.id DESC
     
-    -- Inserimos o LIMIT e o OFFSET de forma segura com placeholders do Postgres ($2 e $3)
     LIMIT $2 OFFSET $3;
   `;
 
@@ -86,10 +74,11 @@ export const updateTagScore = async (usuarioId, characterId, actionType) => {
   console.log(`\n🔹 [TagScore] Chamado para: usuarioId=${usuarioId} | characterId=${characterId} | acao=${actionType}`);
   
   try {
-    const char = await findDataCharacterById(characterId);
+    const resolvedCharacterId = await resolveCharacterId(characterId);
+    const char = resolvedCharacterId ? await findDataCharacterById(resolvedCharacterId) : null;
     
     if (!char) {
-      console.warn(`⚠️ [TagScore] Abortado: Personagem com ID ${characterId} não existe no banco.`);
+      console.warn(`⚠️ [TagScore] Abortado: Personagem com identificador ${characterId} não existe no banco.`);
       return;
     }
     

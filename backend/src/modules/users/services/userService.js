@@ -54,7 +54,7 @@ export const getOtherUserService = async (identifier) => {
 
 // update user profile
 export const editProfileService = async (id, profileData) => {
-    const { nome, foto_perfil, descricao, username } = profileData || {};
+    const { nome, foto_perfil, descricao, username, hide_favorite_character, hide_recent_character, hide_followers, hide_following } = profileData || {};
 
     const trimmedName = nome?.toString().trim();
 
@@ -62,7 +62,7 @@ export const editProfileService = async (id, profileData) => {
         throw new Error('ID_INVALIDO');
     }
 
-    if (!trimmedName) {
+    if (nome !== undefined && !trimmedName) {
         throw new Error('NOME_OBRIGATORIO');
     }
 
@@ -82,10 +82,14 @@ export const editProfileService = async (id, profileData) => {
     }
 
     const updateProfile = await userRepository.updateProfileUserById(id, {
-        nome: trimmedName,
+        nome: nome === undefined ? null : trimmedName,
         foto_perfil: foto_perfil === undefined ? null : foto_perfil,
         descricao: descricao === undefined ? null : descricao,
-        username: normalizedUsername === undefined ? null : normalizedUsername
+        username: normalizedUsername === undefined ? null : normalizedUsername,
+        hide_favorite_character: hide_favorite_character === undefined ? null : hide_favorite_character,
+        hide_recent_character: hide_recent_character === undefined ? null : hide_recent_character,
+        hide_followers: hide_followers === undefined ? null : hide_followers,
+        hide_following: hide_following === undefined ? null : hide_following
     });
 
     if (!updateProfile) {

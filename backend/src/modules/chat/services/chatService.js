@@ -2,7 +2,7 @@ import * as chatRepository from '../repositories/chatRepository.js';
 import * as missionRepository from '../../../modules/missions/repositories/missionRepository.js'; 
 import buildPersonPrompt from '../utils/buildPersonPrompt.js';
 import { generateContent } from '../utils/geminiClient.js';
-import { CHAT_RULES, validateMessage, REPLY_INSTRUCTIONS, REPLY_TAG_REGEX, ID_PREFIX_REGEX, stripLeadingEcho} from '../../../rules/chatRules.js';
+import {CHAT_RULES, validateMessage, REPLY_INSTRUCTIONS, REPLY_TAG_REGEX, ID_PREFIX_REGEX, REPLY_TAG_FAILSAFE_REGEX, ID_PREFIX_FAILSAFE_REGEX, stripLeadingEcho } from '../../../rules/chatRules.js';
 import { detectUserAction, detectCharacterSays } from '../../../rules/missionDetector.js';
 
 const MAX_SESSION_SECONDS = 8 * 60 * 60;
@@ -70,10 +70,44 @@ function extractGeminiResponse(result) {
   }
 }
 
+// Monta o trecho de instruções de emoção com base nas trigger_key ativas no banco
+// (tabela personia2.mission_trigger, categoria='EMOTION'). Se a busca falhar,
+// retorna string vazia e o chat segue normalmente sem tag de emoção.
+async function buildEmotionInstructions() {
+  try {
+    const emotionKeys = await missionRepository.getEmotionTriggerKeys();
+    if (!emotionKeys.length) return '';
+
+    return (
+      `\n\nQuando sua fala expressar uma emoção forte e clara, inclua no INÍCIO da resposta ` +
+      `uma tag no formato [EMOTION:TAG], escolhendo TAG entre exatamente estas opções: ` +
+      `${emotionKeys.join(', ')}. Use no máximo uma tag por resposta, apenas quando fizer ` +
+      `sentido emocional real — não force.`
+    );
+  } catch (err) {
+    console.error('Erro ao buscar tags de emoção ativas:', err);
+    return '';
+  }
+}
+
 export async function chatComPersonagemService(userId, personajeId, message, replyToId = null) {
+  const normalizedUserId = Number(userId);
+  if (!Number.isInteger(normalizedUserId) || normalizedUserId < 1) {
+    throw new Error('INVALID_PARAMETERS');
+  }
+
+  const normalizedReplyToId = replyToId != null && replyToId !== '' ? Number(replyToId) : null;
+  if (normalizedReplyToId !== null && (!Number.isInteger(normalizedReplyToId) || normalizedReplyToId < 1)) {
+    throw new Error('INVALID_PARAMETERS');
+  }
+
   const validation = validateMessage(message);
   if (!validation.valid) {
     throw new Error(validation.error);
+  }
+
+  if (typeof message !== 'string' || message.trim().length > 4000) {
+    throw new Error('Mensagem muito longa');
   }
 
   const character = await chatRepository.getCharacterByIdOrPublicId(personajeId);
@@ -81,8 +115,8 @@ export async function chatComPersonagemService(userId, personajeId, message, rep
     throw new Error('Character not found');
   }
 
-  if (replyToId) {
-    const referencedMsg = await chatRepository.getMessageById(replyToId);
+  if (normalizedReplyToId) {
+    const referencedMsg = await chatRepository.getMessageById(normalizedReplyToId);
     if (!referencedMsg) {
       throw new Error('Referenced message not found');
     }
@@ -90,11 +124,15 @@ export async function chatComPersonagemService(userId, personajeId, message, rep
 
   try {
     const systemPrompt = buildPersonPrompt(character);
-    const history = await loadConversationService(userId, personajeId);
-    
+    const history = await loadConversationService(normalizedUserId, personajeId);
+
     const primeiraMensagemDoChat = history.length === 0;
 
-    const contents = buildGeminiContents(systemPrompt, message, history);
+    // ── Injeta dinamicamente as tags de emoção válidas (vindas do banco) ──
+    const emotionInstructions = await buildEmotionInstructions();
+    const fullSystemPrompt = `${systemPrompt}${emotionInstructions}`;
+
+    const contents = buildGeminiContents(fullSystemPrompt, message, history);
 
     const result = await generateContent(contents);
     console.log(`[TOKENS] input: ${result.tokens.input} | output: ${result.tokens.output} | total: ${result.tokens.total}`);
@@ -119,48 +157,34 @@ export async function chatComPersonagemService(userId, personajeId, message, rep
         if (r?.completada) missoesCompletadas.push('TALK_5_DIFFERENT_CHARACTERS');
       }
 
-      // TAG EMOTION — IA detecta e retorna a tag
+      // TAG EMOTION — IA detecta e retorna a tag; mapeamento vem do banco (mission_trigger)
       if (matchEmotion) {
         const emocao = matchEmotion[1].toUpperCase();
         console.log(`🎯 [EMOTION] ${emocao}`);
 
-        const emotionMap = {
-          'BRAVO':        'MAKE_CHARACTER_ANGRY',
-          'TRISTE':       'MAKE_CHARACTER_SAD',
-          'FELIZ':        'MAKE_CHARACTER_HAPPY',
-          'APAIXONADO':   'MAKE_CHARACTER_LOVE',
-          'CIUMENTO':     'MAKE_CHARACTER_FEEL_JEALOUS',
-          'COM_SAUDADE':  'MAKE_CHARACTER_FEEL_NOSTALGIC',
-          'ENVERGONHADO': 'MAKE_CHARACTER_FEEL_EMBARRASSED',
-          'NERVOSO':      'MAKE_CHARACTER_FEEL_NERVOUS',
-          'ANIMADO':      'MAKE_CHARACTER_FEEL_EXCITED',
-          'CONFORTAVEL':  'MAKE_CHARACTER_FEEL_COMFORTABLE',
-          'SOZINHO':      'MAKE_CHARACTER_FEEL_LONELY',
-          'PROTEGIDO':    'MAKE_CHARACTER_FEEL_PROTECTED',
-          'CURIOSO':      'MAKE_CHARACTER_FEEL_CURIOUS',
-          'LISONJEADO':   'MAKE_CHARACTER_FEEL_FLATTERED',
-          'SURPRESO':     'MAKE_CHARACTER_SURPRISED',
-        };
+        const emotionTriggers = await missionRepository.getTriggersByCategoria('EMOTION');
+        const trigger = emotionTriggers.find((t) => t.trigger_key === emocao);
 
-        const missionType = emotionMap[emocao];
-        if (missionType) {
-          const r = await missionRepository.trackMissionProgress(userId, missionType, 1);
-          if (r?.completada) missoesCompletadas.push(missionType);
+        if (trigger) {
+          const r = await missionRepository.trackMissionProgress(userId, trigger.mission_tipo, 1);
+          if (r?.completada) missoesCompletadas.push(trigger.mission_tipo);
+        } else {
+          console.log(`⚠️ [EMOTION] Tag "${emocao}" não corresponde a nenhum trigger ativo no banco.`);
         }
       } else {
         console.log("❌ [BACKEND] Nenhuma tag [EMOTION:...] foi gerada pelo Gemini.");
       }
 
-      // USER_ACTION — regex na mensagem do usuário
-      const userActionType = detectUserAction(message);
+      // USER_ACTION — padrão vindo do banco, testado na mensagem do usuário
+      const userActionType = await detectUserAction(message);
       if (userActionType) {
         console.log(`👤 [USER_ACTION] ${userActionType}`);
         const r = await missionRepository.trackMissionProgress(userId, userActionType, 1);
         if (r?.completada) missoesCompletadas.push(userActionType);
       }
 
-      // CHARACTER_SAYS — regex na resposta da IA
-      const characterSaysType = detectCharacterSays(respostaBrutaIA);
+      // CHARACTER_SAYS — padrão vindo do banco, testado na resposta da IA
+      const characterSaysType = await detectCharacterSays(respostaBrutaIA);
       if (characterSaysType) {
         console.log(`🤖 [CHARACTER_SAYS] ${characterSaysType}`);
         const r = await missionRepository.trackMissionProgress(userId, characterSaysType, 1);
@@ -178,30 +202,37 @@ export async function chatComPersonagemService(userId, personajeId, message, rep
     const validHistoryIds = new Set(history.map((m) => m.id));
 
     const parsedMessages = rawMessages.map((m) => {
-      const cleanedIdPrefix = m.replace(ID_PREFIX_REGEX, '');
-      const match = cleanedIdPrefix.match(REPLY_TAG_REGEX);
+    const cleanedIdPrefix = m.replace(ID_PREFIX_REGEX, '');
+    const match = cleanedIdPrefix.match(REPLY_TAG_REGEX);
 
-      let text;
-      let replyToId = null;
+    let text;
+    let replyToId = null;
 
-      if (match) {
-        const refId = Number(match[1]);
-        text = cleanedIdPrefix.replace(REPLY_TAG_REGEX, '').trim();
-        replyToId = validHistoryIds.has(refId) ? refId : null;
-      } else {
-        text = cleanedIdPrefix;
-      }
+    if (match) {
+      const refId = Number(match[1]);
+      text = cleanedIdPrefix.replace(REPLY_TAG_REGEX, '').trim();
+      replyToId = validHistoryIds.has(refId) ? refId : null;
+    } else {
+      text = cleanedIdPrefix;
+    }
 
-      text = stripLeadingEcho(text);
+    text = stripLeadingEcho(text);
 
-      return { text, replyToId };
-    }).filter((m) => m.text);
+    // failsafe final: garante que nenhum [id:NUMERO] nem [[REPLY:NUMERO]] sobrevive,
+    // não importa onde a IA colocou
+    text = text
+      .replace(REPLY_TAG_FAILSAFE_REGEX, '')
+      .replace(ID_PREFIX_FAILSAFE_REGEX, '')
+      .trim();
 
-    const savedUserMessage = await sendMessageService(userId, personajeId, 'user', message, replyToId);
+    return { text, replyToId };
+  }).filter((m) => m.text);
+
+    const savedUserMessage = await sendMessageService(normalizedUserId, personajeId, 'user', message, normalizedReplyToId);
 
     const savedBotMessages = [];
     for (const { text, replyToId: botReplyToId } of parsedMessages) {
-      const saved = await sendMessageService(userId, personajeId, 'model', text, botReplyToId);
+      const saved = await sendMessageService(normalizedUserId, personajeId, 'model', text, botReplyToId);
       savedBotMessages.push({ ...saved, replyToId: botReplyToId });
     }
 
@@ -220,6 +251,7 @@ export async function chatComPersonagemService(userId, personajeId, message, rep
     }
 
     return {
+      id: savedUserMessage.id,
       reply: parsedMessages.map((m) => m.text),
       replyIds: savedBotMessages.map((m) => m.id),
       replyToIds: savedBotMessages.map((m) => m.replyToId),
@@ -277,12 +309,19 @@ export const sendMessageService = async (userId, characterId, role, content, rep
   return await chatRepository.saveMessage(chatId, role, content, replyToId);
 };
 
-export const deleteMessageService = async (messageId) => {
-  if (!messageId) {
-    throw new Error('Message ID is required');
+export const deleteMessageService = async (messageId, userId) => {
+  const normalizedMessageId = Number(messageId);
+  const normalizedUserId = Number(userId);
+
+  if (!Number.isInteger(normalizedMessageId) || normalizedMessageId < 1 || normalizedMessageId > 2147483647) {
+    throw new Error('INVALID_MESSAGE_ID');
   }
 
-  const wasDeleted = await chatRepository.deleteMessage(messageId);
+  if (!Number.isInteger(normalizedUserId) || normalizedUserId < 1) {
+    throw new Error('INVALID_USER_ID');
+  }
+
+  const wasDeleted = await chatRepository.deleteMessage(normalizedMessageId, normalizedUserId);
   if (!wasDeleted) {
     throw new Error('MESSAGE_NOT_FOUND');
   }
@@ -290,12 +329,23 @@ export const deleteMessageService = async (messageId) => {
   return { success: true, message: 'Message deleted successfully' };
 };
 
-export const togglePinMessageService = async (messageId, isPinned) => {
-  if (!messageId || isPinned === undefined) {
-    throw new Error('Message ID and isPinned status are required');
+export const togglePinMessageService = async (messageId, isPinned, userId) => {
+  const normalizedMessageId = Number(messageId);
+  const normalizedUserId = Number(userId);
+
+  if (!Number.isInteger(normalizedMessageId) || normalizedMessageId < 1 || normalizedMessageId > 2147483647) {
+    throw new Error('INVALID_MESSAGE_ID');
   }
 
-  const updatedMessage = await chatRepository.togglePinMessage(messageId, isPinned);
+  if (!Number.isInteger(normalizedUserId) || normalizedUserId < 1) {
+    throw new Error('INVALID_USER_ID');
+  }
+
+  if (isPinned === undefined) {
+    throw new Error('Message ID, isPinned status and user ID are required');
+  }
+
+  const updatedMessage = await chatRepository.togglePinMessage(normalizedMessageId, isPinned, normalizedUserId);
   if (!updatedMessage) {
     throw new Error('Message not found to update pin status');
   }
@@ -303,20 +353,27 @@ export const togglePinMessageService = async (messageId, isPinned) => {
   return updatedMessage;
 };
 
-export const getChatPinnedMessages = async (chatId) => {
-  if (!chatId) {
-    throw new Error('Chat ID is required');
+export const getChatPinnedMessages = async (chatId, userId) => {
+  if (!chatId || !userId) {
+    throw new Error('Chat ID and user ID are required');
   }
 
-  return await chatRepository.getPinnedMessages(chatId);
+  return await chatRepository.getPinnedMessages(chatId, userId);
 };
 
-export const getMessageByIdService = async (messageId) => {
-  if (!messageId) {
-    throw new Error('Message ID is required');
+export const getMessageByIdService = async (messageId, userId) => {
+  const normalizedMessageId = Number(messageId);
+  const normalizedUserId = Number(userId);
+
+  if (!Number.isInteger(normalizedMessageId) || normalizedMessageId < 1 || normalizedMessageId > 2147483647) {
+    throw new Error('INVALID_MESSAGE_ID');
   }
 
-  const message = await chatRepository.getMessageById(messageId);
+  if (!Number.isInteger(normalizedUserId) || normalizedUserId < 1) {
+    throw new Error('INVALID_USER_ID');
+  }
+
+  const message = await chatRepository.getMessageById(normalizedMessageId, normalizedUserId);
   if (!message) {
     return null;
   }

@@ -54,7 +54,7 @@ export const findFavoritesUserByUser = async (
   try {
     const query = `
       SELECT
-        p.id,
+        p.public_id,
         p.nome,
         p.fotoia,
         p.bio,
@@ -69,6 +69,19 @@ export const findFavoritesUserByUser = async (
     return result.rows;
   } catch (error) {
     console.error('[findFavoritesUserByUser] Error searching for favorites:', error);
+    throw error;
+  }
+};
+
+export const findUserPrivacyFlags = async (usuarioId) => {
+  try {
+    const result = await db.query(
+      'SELECT hide_favorite_character, hide_recent_character FROM personia2.usuarios WHERE id = $1',
+      [usuarioId]
+    );
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('[findUserPrivacyFlags] Error loading privacy flags:', error);
     throw error;
   }
 };

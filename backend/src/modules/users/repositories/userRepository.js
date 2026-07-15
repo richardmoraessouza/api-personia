@@ -2,11 +2,10 @@ import db from '../../../config/db.js';
 
 const FRAME_UNLOCKS = [
   { requiredLevel: 5, frameName: 'cat' },
-  { requiredLevel: 5, frameName: 'cyberpunk' },
+  { requiredLevel: 19, frameName: 'cyberpunk' },
   { requiredLevel: 10, frameName: 'foxy' },
   { requiredLevel: 20, frameName: 'rainbow' },
   { requiredLevel: 35, frameName: 'dark' },
-  { requiredLevel: 35, frameName: 'diamond' },
   { requiredLevel: 88, frameName: 'horror' },
 ];
 
@@ -23,7 +22,8 @@ export const FindByid = async (id) => {
 // Search user by ID
 export const findUserById = async (id) => {
     const result = await db.query(`
-        SELECT id, nome, foto_perfil, descricao, username
+        SELECT id, nome, foto_perfil, descricao, username,
+               hide_favorite_character, hide_recent_character, hide_followers, hide_following
         FROM personia2.usuarios WHERE id = $1
     `, [id]);
     return result.rows[0];
@@ -52,7 +52,8 @@ export const findUserByIdentifier = async (identifier) => {
     }
 
     const result = await db.query(`
-        SELECT id, nome, foto_perfil, descricao, frame, username
+        SELECT id, nome, foto_perfil, descricao, frame, username,
+               hide_favorite_character, hide_recent_character, hide_followers, hide_following
         FROM personia2.usuarios
         WHERE LOWER(username) = LOWER($1)
         LIMIT 1
@@ -79,21 +80,25 @@ export const findUserByUsernameExceptSelf = async (username, userId) => {
     return result.rows[0];
 };
 
-export const updateProfileUserById = async (id, {nome, foto_perfil, descricao, username}) => {
+export const updateProfileUserById = async (id, {nome, foto_perfil, descricao, username, hide_favorite_character, hide_recent_character, hide_followers, hide_following}) => {
     const updateQuery = `
         UPDATE personia2.usuarios
         SET
             nome = COALESCE(NULLIF($1::text, ''), nome),
             foto_perfil = COALESCE($2::text, foto_perfil),
             descricao = COALESCE($3::text, descricao),
-            username = COALESCE(NULLIF($5::text, ''), username)
+            username = COALESCE(NULLIF($5::text, ''), username),
+            hide_favorite_character = COALESCE($6::boolean, hide_favorite_character),
+            hide_recent_character = COALESCE($7::boolean, hide_recent_character),
+            hide_followers = COALESCE($8::boolean, hide_followers),
+            hide_following = COALESCE($9::boolean, hide_following)
         WHERE id = $4
     `;
 
-    await db.query(updateQuery, [nome, foto_perfil, descricao, id, username]);
+    await db.query(updateQuery, [nome, foto_perfil, descricao, id, username, hide_favorite_character, hide_recent_character, hide_followers, hide_following]);
 
     const selectQuery = `
-        SELECT id, nome, foto_perfil, descricao, username
+        SELECT id, nome, foto_perfil, descricao, username, hide_favorite_character, hide_recent_character, hide_followers, hide_following
         FROM personia2.usuarios
         WHERE id = $1
     `;

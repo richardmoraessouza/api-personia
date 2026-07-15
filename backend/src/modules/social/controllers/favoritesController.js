@@ -6,13 +6,13 @@ import { updateTagScore } from '../../discovery/repositories/discoveryRepository
 // Uses JWT token for authentication
 // =========================
 export const toggleFavorites = async (req, res) => {
-  const usuarioId = req.user.id; // From JWT token, not from URL!
+  const usuarioId = Number(req.user.id); // From JWT token, not from URL!
   const { personagem_id } = req.params;
 
   try {
     const result = await socialService.toggleFavoritesService(
-      Number(usuarioId),
-      Number(personagem_id)
+      usuarioId,
+      personagem_id
     );
 
     // Atualiza o score das tags do personagem

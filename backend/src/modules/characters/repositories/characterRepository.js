@@ -5,13 +5,18 @@ import { handleAutoClassification } from '../../ratings/services/ratingsService.
 
 
 // Get characters by user ID (FRONTEND-FACING: sem id interno)
-export const getCharactersByUsuarioId = async (usuarioId) => {
-  const result = await db.query(`
-    SELECT id, public_id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao
-    FROM personia2.personagens
-    WHERE usuario_id = $1
-  `, [usuarioId]);
+// requesterUsuarioId controla se o usuário autenticado é o dono do perfil.
+export const getCharactersByUsuarioId = async (usuarioId, requesterUsuarioId = null) => {
+  const isOwner = requesterUsuarioId && Number(requesterUsuarioId) === Number(usuarioId);
+  const query = `
+    SELECT p.public_id, p.nome, p.fotoia, p.bio, p.tipo_personagem, p.usuario_id, p.descricao, p.is_public,
+           p.tags_slugs AS tags
+    FROM personia2.personagens p
+    WHERE p.usuario_id = $1
+    ${isOwner ? '' : 'AND p.is_public = true'}
+  `;
 
+  const result = await db.query(query, [usuarioId]);
   return result.rows;
 };
 
@@ -19,26 +24,123 @@ export const getCharactersByUsuarioId = async (usuarioId) => {
 // Não expor o resultado bruto disso pro frontend.
 export const findDataCharacterById = async (id) => {
   const result = await db.query(`
-    SELECT * FROM personia2.personagens
-    WHERE id = $1
+    SELECT p.id, p.public_id, p.nome, p.fotoia, p.bio, p.tipo_personagem, p.usuario_id, p.descricao,
+           p.genero, p.personalidade, p.historia, p.regras, p.obra, p.aparencia, p.gostos, p.desgostos,
+           p.objetivos, p.primeiramensagem, p.relacaousuario, p.cenario, p.quick_prompt, p.is_modo_rapido,
+           p.conversation_style, p.is_public, p.visualizacoes, p.criado_em, p.tags_slugs AS tags,
+           u.nome AS nome_criador,
+           u.username AS username_criador
+    FROM personia2.personagens p
+    LEFT JOIN personia2.usuarios u ON u.id = p.usuario_id
+    WHERE p.id = $1
   `, [id]);
 
   return result.rows[0] || null;
 };
 
+// Get a public-safe character payload for frontend routes.
+export const findPublicCharacterById = async (id) => {
+  const result = await db.query(`
+    SELECT p.id, p.public_id, p.nome, p.fotoia, p.bio, p.tipo_personagem, p.usuario_id, p.descricao,
+           p.genero, p.personalidade, p.historia, p.regras, p.obra, p.aparencia, p.gostos, p.desgostos,
+           p.objetivos, p.primeiramensagem, p.relacaousuario, p.cenario, p.quick_prompt, p.is_modo_rapido,
+           p.conversation_style, p.is_public, p.visualizacoes, p.criado_em, p.tags_slugs AS tags
+    FROM personia2.personagens p
+    WHERE p.id = $1
+  `, [id]);
+
+  const row = result.rows[0];
+  if (!row) return null;
+
+  return {
+    public_id: row.public_id,
+    nome: row.nome,
+    fotoia: row.fotoia,
+    bio: row.bio,
+    tipo_personagem: row.tipo_personagem,
+    usuario_id: row.usuario_id,
+    descricao: row.descricao,
+    genero: row.genero,
+    personalidade: row.personalidade,
+    historia: row.historia,
+    regras: row.regras,
+    obra: row.obra,
+    aparencia: row.aparencia,
+    gostos: row.gostos,
+    desgostos: row.desgostos,
+    objetivos: row.objetivos,
+    primeiramensagem: row.primeiramensagem,
+    relacaousuario: row.relacaousuario,
+    cenario: row.cenario,
+    quick_prompt: row.quick_prompt,
+    is_modo_rapido: row.is_modo_rapido,
+    conversation_style: row.conversation_style,
+    is_public: row.is_public,
+    visualizacoes: row.visualizacoes,
+    criado_em: row.criado_em,
+    tags: row.tags ?? null
+  };
+};
+
 // Get character data by public_id (FRONTEND-FACING: use esta em rotas públicas)
 export const findDataCharacterByPublicId = async (publicId) => {
   const result = await db.query(`
-    SELECT * FROM personia2.personagens
-    WHERE public_id = $1
+    SELECT p.id, p.public_id, p.nome, p.fotoia, p.bio, p.tipo_personagem, p.usuario_id, p.descricao,
+           p.genero, p.personalidade, p.historia, p.regras, p.obra, p.aparencia, p.gostos, p.desgostos,
+           p.objetivos, p.primeiramensagem, p.relacaousuario, p.cenario, p.quick_prompt, p.is_modo_rapido,
+           p.conversation_style, p.is_public, p.visualizacoes, p.criado_em, p.tags_slugs AS tags
+    FROM personia2.personagens p
+    WHERE p.public_id = $1
   `, [publicId]);
 
   const row = result.rows[0];
   if (!row) return null;
 
-  // remove o id interno antes de devolver pro controller/frontend
-  const { id, ...publicSafe } = row;
-  return publicSafe;
+  return {
+    public_id: row.public_id,
+    nome: row.nome,
+    fotoia: row.fotoia,
+    bio: row.bio,
+    tipo_personagem: row.tipo_personagem,
+    usuario_id: row.usuario_id,
+    descricao: row.descricao,
+    genero: row.genero,
+    personalidade: row.personalidade,
+    historia: row.historia,
+    regras: row.regras,
+    obra: row.obra,
+    aparencia: row.aparencia,
+    gostos: row.gostos,
+    desgostos: row.desgostos,
+    objetivos: row.objetivos,
+    primeiramensagem: row.primeiramensagem,
+    relacaousuario: row.relacaousuario,
+    cenario: row.cenario,
+    quick_prompt: row.quick_prompt,
+    is_modo_rapido: row.is_modo_rapido,
+    conversation_style: row.conversation_style,
+    is_public: row.is_public,
+    visualizacoes: row.visualizacoes,
+    criado_em: row.criado_em,
+    tags: row.tags ?? null
+  };
+};
+
+export const resolveCharacterId = async (identifier) => {
+  if (identifier === undefined || identifier === null || identifier === '') {
+    return null;
+  }
+
+  const numericId = Number(identifier);
+  if (!Number.isNaN(numericId) && String(numericId) === String(identifier)) {
+    const character = await findDataCharacterById(numericId);
+    if (character) {
+      return numericId;
+    }
+  }
+
+  const result = await db.query('SELECT id FROM personia2.personagens WHERE public_id = $1', [identifier]);
+  return result.rows[0]?.id || null;
 };
 
 // Search characters by name and optionally filter by tag slug (FRONTEND-FACING)
@@ -47,21 +149,25 @@ export const searchCharactersByNameAndTag = async (nomePersonagem, tagSlug = '',
 
   if (!tagSlug) {
     const result = await db.query(`
-      SELECT id, public_id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao, tags_slugs AS tags
-      FROM personia2.personagens
-      WHERE LOWER(nome) LIKE $1
-      ORDER BY id
+      SELECT p.public_id, p.nome, p.fotoia, p.bio, p.tipo_personagem, p.usuario_id, p.descricao,
+             p.tags_slugs AS tags, p.is_public
+      FROM personia2.personagens p
+      WHERE LOWER(p.nome) LIKE $1
+        AND p.is_public = true
+      ORDER BY p.id
       LIMIT $2 OFFSET $3
     `, [lowerTerm, limit, offset]);
     return result.rows;
   }
 
   const result = await db.query(`
-    SELECT id, public_id, nome, fotoia, bio, tipo_personagem, usuario_id, descricao, tags_slugs AS tags
-    FROM personia2.personagens
-    WHERE LOWER(nome) LIKE $1
-      AND $2 = ANY(tags_slugs)
-    ORDER BY id
+    SELECT p.public_id, p.nome, p.fotoia, p.bio, p.tipo_personagem, p.usuario_id, p.descricao,
+           p.tags_slugs AS tags, p.is_public
+    FROM personia2.personagens p
+    WHERE LOWER(p.nome) LIKE $1
+      AND $2 = ANY(p.tags_slugs)
+      AND p.is_public = true
+    ORDER BY p.id
     LIMIT $3 OFFSET $4
   `, [lowerTerm, tagSlug, limit, offset]);
 
@@ -75,7 +181,7 @@ export const updateCharacterById = async (id, person) => {
     nome, bio, genero, personalidade, historia, fotoia, regras, 
     descricao, obra, tipo_personagem, conversation_style, 
     aparencia, gostos, desgostos, objetivos, primeiramensagem, 
-    relacaousuario, cenario, quick_prompt, is_modo_rapido
+    relacaousuario, cenario, quick_prompt, is_modo_rapido, is_public
   } = person;
 
   const query = `
@@ -85,8 +191,8 @@ export const updateCharacterById = async (id, person) => {
       historia = $5, fotoia = $6, regras = $7, descricao = $8,
       obra = $9, tipo_personagem = $10, conversation_style = $11,
       aparencia = $12, gostos = $13, desgostos = $14, objetivos = $15,
-      primeiramensagem = $16, relacaousuario = $17, cenario = $18, quick_prompt = $19, is_modo_rapido = $20
-    WHERE id = $21
+      primeiramensagem = $16, relacaousuario = $17, cenario = $18, quick_prompt = $19, is_modo_rapido = $20, is_public = $21
+    WHERE id = $22
     RETURNING *
   `;
 
@@ -95,7 +201,7 @@ export const updateCharacterById = async (id, person) => {
     historia ?? null, fotoia ?? null, regras ?? null, descricao ?? null,
     obra ?? null, tipo_personagem ?? null, conversation_style ?? null,
     aparencia ?? null, gostos ?? null, desgostos ?? null, objetivos ?? null,
-    primeiramensagem ?? null, relacaousuario ?? null, cenario ?? null, quick_prompt ?? null, is_modo_rapido ?? null, id
+    primeiramensagem ?? null, relacaousuario ?? null, cenario ?? null, quick_prompt ?? null, is_modo_rapido ?? null, is_public ?? null, id
   ];
 
   const result = await db.query(query, values);
@@ -124,7 +230,7 @@ export const createCharacter = async (person) => {
     nome, genero, personalidade, historia, fotoia, regras, 
     usuario_id, usuarioId, descricao, obra, bio, 
     conversation_style, aparencia, gostos, desgostos, 
-    objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem, quick_prompt, is_modo_rapido
+    objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem, quick_prompt, is_modo_rapido, is_public
   } = person;
   
   const userId = usuario_id || usuarioId;
@@ -135,16 +241,16 @@ export const createCharacter = async (person) => {
     (
       nome, genero, personalidade, historia, fotoia, regras, usuario_id, 
       descricao, obra, bio, conversation_style, aparencia, gostos, 
-      desgostos, objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem, quick_prompt, is_modo_rapido, public_id
+      desgostos, objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem, quick_prompt, is_modo_rapido, is_public, public_id
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
     RETURNING *
   `;
 
   const values = [
     nome, genero, personalidade, historia, fotoia, regras, userId, 
     descricao, obra, bio, conversation_style, aparencia, gostos, 
-    desgostos, objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem, quick_prompt, is_modo_rapido, publicId
+    desgostos, objetivos, primeiramensagem, relacaousuario, cenario, tipo_personagem, quick_prompt, is_modo_rapido, is_public ?? true, publicId
   ];
 
   const result = await db.query(query, values);
@@ -191,7 +297,8 @@ export const saveRecentCharacter = async (usuarioId, personagemId) => {
 // Get 10 most recent characters for user (FRONTEND-FACING: sem id interno)
 export const findRecentCharacters = async (usuarioId) => {
   const query = `
-    SELECT p.public_id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao
+    SELECT p.public_id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao, p.is_public,
+           p.tags_slugs AS tags
     FROM (
         SELECT DISTINCT ON (personagem_id) personagem_id, criado_em
         FROM personia2.recent_characters
@@ -199,12 +306,24 @@ export const findRecentCharacters = async (usuarioId) => {
         ORDER BY personagem_id, criado_em DESC
     ) rc
     JOIN personia2.personagens p ON p.id = rc.personagem_id
+    WHERE p.is_public = true OR p.usuario_id = $1
     ORDER BY rc.criado_em DESC
     LIMIT 20
   `;
   
   const result = await db.query(query, [usuarioId]);
   return result.rows;
+};
+
+export const findUserPrivacyFlags = async (usuarioId) => {
+  const query = `
+    SELECT hide_favorite_character, hide_recent_character
+    FROM personia2.usuarios
+    WHERE id = $1
+  `;
+
+  const result = await db.query(query, [usuarioId]);
+  return result.rows[0] || null;
 };
 
 //single view function (USO INTERNO, recebe id interno resolvido pelo controller)
@@ -235,11 +354,13 @@ export const incrementViews = async (characterId) => {
 //search for the 10 most popular characters of the week based on recent views. (FRONTEND-FACING)
 export const getPopularWeekCharacters = async () => {
   const query = `
-    SELECT p.id, p.public_id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao, wv.view_count
+    SELECT p.public_id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao, wv.view_count,
+           p.tags_slugs AS tags
     FROM personia2.personagens p
     JOIN personia2.weekly_views wv ON p.id = wv.personagem_id
     WHERE p.fotoia IS NOT NULL 
       AND p.fotoia <> '/semPerfil.jpg'
+      AND p.is_public = true
     ORDER BY wv.view_count DESC
     LIMIT 10
   `;
@@ -250,7 +371,7 @@ export const getPopularWeekCharacters = async () => {
 // FRONTEND-FACING: sem id interno na resposta.
 // OBS: o WHERE id NOT IN continua usando o id interno (é filtro/join, não vaza pro cliente).
 export const getCharactersPaginated = async (limit, offset, seed = 0.5, popularIds = []) => {
-  const cacheKey = `explore:${limit}:${offset}:${seed}:${popularIds.join(',')}`;
+  const cacheKey = `explore:v2:${limit}:${offset}:${seed}:${popularIds.join(',')}`;
 
   try {
     const cachedData = await redisClient.get(cacheKey);
@@ -269,11 +390,13 @@ export const getCharactersPaginated = async (limit, offset, seed = 0.5, popularI
   const excludeIds = popularIds.length > 0 ? popularIds : [0];
 
   const query = `
-    SELECT id, public_id, nome, fotoia, tipo_personagem, usuario_id, bio, descricao, visualizacoes, criado_em
-    FROM personia2.personagens
-    WHERE id NOT IN (${excludeIds.join(',')})
-    ORDER BY visualizacoes DESC
-    LIMIT $1 OFFSET $2
+      SELECT p.public_id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao,
+            p.visualizacoes, p.criado_em, p.is_public, p.tags_slugs AS tags
+      FROM personia2.personagens p
+      WHERE p.id NOT IN (${excludeIds.join(',')})
+        AND p.is_public = true
+      ORDER BY p.visualizacoes DESC
+      LIMIT $1 OFFSET $2
   `;
 
   const result = await db.query(query, [limit, offset]);
@@ -286,4 +409,17 @@ export const getCharactersPaginated = async (limit, offset, seed = 0.5, popularI
   }
 
   return data;
+};
+
+// Update character visibility (FRONTEND-FACING: usa public_id para alterar o status)
+export const updateCharacterVisibility = async (publicId, isPublic) => {
+  const query = `
+    UPDATE personia2.personagens
+    SET is_public = $1
+    WHERE public_id = $2
+    RETURNING public_id, nome, is_public, usuario_id;
+  `;
+
+  const result = await db.query(query, [isPublic, publicId]);
+  return result.rows[0] || null;
 };

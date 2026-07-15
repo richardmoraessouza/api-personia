@@ -1,14 +1,16 @@
 import db from '../../../config/db.js';
 import { updateXpAndLevel, updateXpAndLevelWithClient } from '../../users/repositories/userRepository.js';
 
-// Busca as missões vinculadas ao usuário na última hora com as propriedades do catálogo
+const MISSION_ASSIGNMENT_WINDOW_HOURS = 24;
+
+// Busca as missões vinculadas ao usuário na janela atual de atribuição com as propriedades do catálogo
 export const findDailyMissionsByUserId = async (usuarioId) => {
   const query = `
     SELECT um.id, um.mission_id, um.progresso, um.completada, um.coletada_em, um.data_atribuida,
            m.tipo, m.titulo, m.descricao, m.objetivo, m.xp
     FROM personia2.user_missions um
     JOIN personia2.mission m ON um.mission_id = m.id
-    WHERE um.user_id = $1 AND um.data_atribuida >= NOW() - INTERVAL '5 hour';
+    WHERE um.user_id = $1 AND um.data_atribuida >= NOW() - INTERVAL '${MISSION_ASSIGNMENT_WINDOW_HOURS} hour';
   `;
   const result = await db.query(query, [usuarioId]);
   return result.rows;
@@ -26,11 +28,11 @@ export const findRandomActiveMissions = async (limit = 5) => {
   return result.rows;
 };
 
-// Remove as atribuições da última hora para evitar duplicações
+// Remove atribuições antigas da janela atual para evitar duplicações na reatribuição
 export const deleteTodayMissions = async (usuarioId) => {
   const query = `
     DELETE FROM personia2.user_missions 
-    WHERE user_id = $1 AND data_atribuida >= NOW() - INTERVAL '1 hour';
+    WHERE user_id = $1 AND data_atribuida >= NOW() - INTERVAL '${MISSION_ASSIGNMENT_WINDOW_HOURS} hour';
   `;
   await db.query(query, [usuarioId]);
 };
@@ -45,13 +47,13 @@ export const saveDailyMissions = async (usuarioId, missionIds) => {
   }));
 };
 
-// Localiza uma missão específica do usuário na última hora
+// Localiza uma missão específica do usuário na janela atual de atribuição
 export const findUserMissionToday = async (usuarioId, missionId) => {
   const query = `
     SELECT um.*, m.titulo, m.objetivo, m.xp 
     FROM personia2.user_missions um
     JOIN personia2.mission m ON um.mission_id = m.id
-    WHERE um.user_id = $1 AND um.mission_id = $2 AND um.data_atribuida >= NOW() - INTERVAL '1 hour';
+    WHERE um.user_id = $1 AND um.mission_id = $2 AND um.data_atribuida >= NOW() - INTERVAL '${MISSION_ASSIGNMENT_WINDOW_HOURS} hour';
   `;
   const result = await db.query(query, [usuarioId, missionId]);
   return result.rows[0] || null;
@@ -86,7 +88,7 @@ export const claimUserMission = async (usuarioId, missionId) => {
       SELECT um.id, um.progresso, um.completada, um.coletada_em, m.objetivo, m.xp
       FROM personia2.user_missions um
       JOIN personia2.mission m ON um.mission_id = m.id
-      WHERE um.user_id = $1 AND um.mission_id = $2 AND um.data_atribuida >= NOW() - INTERVAL '1 hour'
+      WHERE um.user_id = $1 AND um.mission_id = $2 AND um.data_atribuida >= NOW() - INTERVAL '${MISSION_ASSIGNMENT_WINDOW_HOURS} hour'
       FOR UPDATE
       LIMIT 1;
     `;
@@ -142,7 +144,7 @@ export const trackMissionProgress = async (usuarioId, tipo, increment = 1) => {
       JOIN personia2.mission m ON um.mission_id = m.id
       WHERE um.user_id = $1
         AND m.tipo = $2
-        AND um.data_atribuida >= NOW() - INTERVAL '1 hour'
+        AND um.data_atribuida >= NOW() - INTERVAL '${MISSION_ASSIGNMENT_WINDOW_HOURS} hour'
         AND um.completada = FALSE
       ORDER BY um.id
       LIMIT 1
@@ -171,7 +173,7 @@ export const trackMissionProgress = async (usuarioId, tipo, increment = 1) => {
 
     let xpResult = null;
     if (completada) {
-      xpResult = await updateXpAndLevel(usuarioId, mission.xp);
+      xpResult = await updateXpAndLevelWithClient(client, usuarioId, mission.xp);
       console.log(`🏆 [MISSION] tipo=${tipo} | user=${usuarioId} completou a missão e recebeu +${mission.xp} XP`);
     }
 
@@ -184,4 +186,47 @@ export const trackMissionProgress = async (usuarioId, tipo, increment = 1) => {
   } finally {
     client.release();
   }
+};
+
+// ────────────────────────────────────────────────────────────────
+// TRIGGERS DINÂMICOS (mission_trigger)
+// ────────────────────────────────────────────────────────────────
+
+// Cache simples em memória — evita bater no banco a cada mensagem de chat.
+// TTL curto o suficiente pra você ver mudanças quase em tempo real ao editar
+// a tabela mission_trigger, mas alto o suficiente pra não sobrecarregar o banco.
+let _triggerCache = { data: null, expiresAt: 0 };
+const TRIGGER_CACHE_TTL_MS = 60_000;
+
+export const getActiveTriggers = async () => {
+  const now = Date.now();
+  if (_triggerCache.data && now < _triggerCache.expiresAt) {
+    return _triggerCache.data;
+  }
+
+  const query = `
+    SELECT mission_tipo, categoria, trigger_key, trigger_pattern
+    FROM personia2.mission_trigger
+    WHERE ativa = TRUE;
+  `;
+  const result = await db.query(query);
+
+  _triggerCache = { data: result.rows, expiresAt: now + TRIGGER_CACHE_TTL_MS };
+  return result.rows;
+};
+
+// Força a releitura do banco na próxima chamada (útil após criar/editar um trigger via admin)
+export const invalidateTriggerCache = () => {
+  _triggerCache = { data: null, expiresAt: 0 };
+};
+
+export const getTriggersByCategoria = async (categoria) => {
+  const all = await getActiveTriggers();
+  return all.filter((t) => t.categoria === categoria);
+};
+
+// Lista só as trigger_key de EMOTION ativas — usado pra montar o prompt da IA
+export const getEmotionTriggerKeys = async () => {
+  const triggers = await getTriggersByCategoria('EMOTION');
+  return triggers.filter((t) => t.trigger_key).map((t) => t.trigger_key);
 };

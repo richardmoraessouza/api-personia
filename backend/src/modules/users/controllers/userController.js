@@ -68,6 +68,11 @@ export const editProfile = async (req, res) => {
 
   try {
     const { usuarioId } = req.params;
+    const authenticatedUserId = Number(req.user?.id);
+
+    if (!Number.isInteger(authenticatedUserId) || authenticatedUserId !== Number(usuarioId)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
 
     const updateProfile = await userService.editProfileService(usuarioId, req.body);
 

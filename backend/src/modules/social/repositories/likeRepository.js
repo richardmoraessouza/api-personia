@@ -50,8 +50,11 @@ export const countLikesByPersonagem = async (personagemId) => {
 // ============================
 export const getLikesByUsuario = async (usuarioId) => {
   const result = await db.query(
-    `SELECT personagem_id FROM personia2.likes WHERE usuario_id = $1`,
+    `SELECT p.public_id
+     FROM personia2.likes l
+     JOIN personia2.personagens p ON p.id = l.personagem_id
+     WHERE l.usuario_id = $1`,
     [usuarioId]
   );
-  return result.rows.map(r => r.personagem_id);
+  return result.rows.map(r => r.public_id);
 };

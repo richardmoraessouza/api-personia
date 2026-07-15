@@ -1,5 +1,6 @@
 import * as socialRepository from "../repositories/favoritesRepository.js";
 import * as cacheService from "../../../services/cacheService.js";
+import { resolveCharacterId } from "../../characters/repositories/characterRepository.js";
 
 /**
  * CONFIGURAÇÃO DE CACHE
@@ -15,17 +16,26 @@ export const toggleFavoritesService = async (
   usuarioId,
   personagemId
 ) => {
+  const resolvedPersonagemId = await resolveCharacterId(personagemId);
+
+  if (!resolvedPersonagemId) {
+    return {
+      status: 404,
+      error: 'Personagem não encontrado'
+    };
+  }
+
   const favoritoExiste =
     await socialRepository.findFavorites(
       usuarioId,
-      personagemId
+      resolvedPersonagemId
     );
 
   // If favorite exists, remove it
   if (favoritoExiste) {
     await socialRepository.removeFavorite(
       usuarioId,
-      personagemId
+      resolvedPersonagemId
     );
 
     // Invalida cache de favoritos do usuário
@@ -41,7 +51,7 @@ export const toggleFavoritesService = async (
   // Add new favorite
   await socialRepository.addFavorite(
     usuarioId,
-    personagemId
+    resolvedPersonagemId
   );
 
   // Invalida cache de favoritos do usuário

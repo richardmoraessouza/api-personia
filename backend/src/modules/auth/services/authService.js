@@ -6,6 +6,19 @@ import { validateUsername } from '../../../utils/usernameValidation.js';
 
 dotenv.config();
 
+const buildSafeUserPayload = (usuario) => ({
+  id: usuario.id,
+  nome: usuario.nome,
+  gmail: usuario.gmail,
+  foto_perfil: usuario.foto_perfil,
+  descricao: usuario.descricao,
+  frame: usuario.frame,
+  username: usuario.username,
+  hide_favorite_character: usuario.hide_favorite_character ?? false,
+  hide_recent_character: usuario.hide_recent_character ?? false,
+  hide_followers: usuario.hide_followers ?? false,
+  hide_following: usuario.hide_following ?? false
+});
 
 // =========================
 // CREATE USER
@@ -33,7 +46,8 @@ export const createUserService = async (data) => {
   const token = jwt.sign(
     {
       id: user.id,
-      gmail: user.gmail
+      gmail: user.gmail,
+      nome: user.nome
     },
     AUTH_RULES.JWT_SECRET,
     {
@@ -43,13 +57,11 @@ export const createUserService = async (data) => {
 
   return {
     token,
-    usuario: {
-      id: user.id,
+    usuario: buildSafeUserPayload({
+      ...user,
       nome: user.nome,
-      gmail: user.gmail,
-      foto_perfil: user.foto_perfil,
-      username: user.username
-    }
+      gmail: user.gmail
+    })
   };
 };
 
@@ -68,7 +80,8 @@ export const loginUserService = async (gmail) => {
   const token = jwt.sign(
     {
       id: usuario.id,
-      nome: usuario.nome
+      nome: usuario.nome,
+      gmail: usuario.gmail
     },
     AUTH_RULES.JWT_SECRET,
     {
@@ -77,14 +90,19 @@ export const loginUserService = async (gmail) => {
   );
 
   return {
-    id: usuario.id,
-    nome: usuario.nome,
-    gmail: usuario.gmail,
-    foto_perfil: usuario.foto_perfil,
-    descricao: usuario.descricao,
-    frame: usuario.frame,
-    token
+    token,
+    usuario: buildSafeUserPayload(usuario)
   };
+};
+
+export const getCurrentUserData = async (id) => {
+  const usuario = await authRepository.findUserById(id);
+
+  if (!usuario) {
+    throw new Error('USUARIO_NAO_ENCONTRADO');
+  }
+
+  return buildSafeUserPayload(usuario);
 };
 
 

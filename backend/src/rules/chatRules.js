@@ -37,8 +37,10 @@ export const validateMessage = (message) => {
   return { valid: true };
 };
 
-export const ID_PREFIX_REGEX = /^\[id:\d+\]\s*/;
-export const REPLY_TAG_REGEX = /^\[\[REPLY:(\d+)\]\]\s*/;
+export const ID_PREFIX_REGEX = /^\s*\[id\s*:\s*\d+\]\s*/i;
+export const ID_PREFIX_FAILSAFE_REGEX = /\[id\s*:\s*\d+\]\s*/gi;
+export const REPLY_TAG_REGEX = /^\s*\[{1,2}['"`]?\s*REPLY\s*:\s*(\d+)\s*\]{1,2}\s*/i;
+export const REPLY_TAG_FAILSAFE_REGEX = /\[{1,2}['"`]?\s*REPLY\s*:\s*(\d+)\s*\]{1,2}\s*/gi;
 
 export const REPLY_INSTRUCTIONS = `
 REGRAS DO MARCADOR DE RESPOSTA (REPLY) — SIGA EXATAMENTE:

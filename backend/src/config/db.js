@@ -5,17 +5,19 @@ dotenv.config();
 
 const { Pool } = pkg;
 
-const isLocalhost = process.env.PGHOST?.includes('localhost') || process.env.PGHOST?.includes('127.0.0.1');
+const resolvedHost = process.env.PGHOST || process.env.DB_HOST || 'localhost';
+const isLocalhost = resolvedHost.includes('localhost') || resolvedHost.includes('127.0.0.1');
+const shouldUseSsl = process.env.PGSSLMODE === 'require' || process.env.PGSSL === 'true' || process.env.DB_SSL === 'true' || process.env.DB_SSL === '1';
 
 const pool = new Pool({
-  host: process.env.PGHOST,
-  port: 5432,
-  user: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
-  database: process.env.PGDATABASE,
-  ssl: isLocalhost ? false : {
-    rejectUnauthorized: false 
-  }
+  host: resolvedHost,
+  port: Number(process.env.DB_PORT || process.env.PGPORT || 5432),
+  user: process.env.PGUSER || process.env.DB_USER || 'postgres',
+  password: process.env.PGPASSWORD || process.env.DB_PASSWORD || '',
+  database: process.env.PGDATABASE || process.env.DB_NAME || 'postgres',
+  ssl: shouldUseSsl && !isLocalhost ? {
+    rejectUnauthorized: false
+  } : false
 });
 
 // When the app starts we can create some helpful indexes if they don't
@@ -65,6 +67,58 @@ async function ensureIndexes() {
     );
   } catch (e) {
     console.error('Erro ao criar índices:', e);
+  }
+}
+
+async function ensureUserPrivacyColumns() {
+  try {
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'personia2'
+            AND table_name = 'usuarios'
+            AND column_name = 'hide_favorite_character'
+        ) THEN
+          ALTER TABLE personia2.usuarios
+          ADD COLUMN hide_favorite_character BOOLEAN DEFAULT FALSE;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'personia2'
+            AND table_name = 'usuarios'
+            AND column_name = 'hide_recent_character'
+        ) THEN
+          ALTER TABLE personia2.usuarios
+          ADD COLUMN hide_recent_character BOOLEAN DEFAULT FALSE;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'personia2'
+            AND table_name = 'usuarios'
+            AND column_name = 'hide_followers'
+        ) THEN
+          ALTER TABLE personia2.usuarios
+          ADD COLUMN hide_followers BOOLEAN DEFAULT FALSE;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'personia2'
+            AND table_name = 'usuarios'
+            AND column_name = 'hide_following'
+        ) THEN
+          ALTER TABLE personia2.usuarios
+          ADD COLUMN hide_following BOOLEAN DEFAULT FALSE;
+        END IF;
+      END $$;
+    `);
+  } catch (e) {
+    console.error('Erro ao criar colunas de privacidade:', e);
+    throw e;
   }
 }
 
@@ -125,17 +179,20 @@ async function ensureMissionTables() {
   }
 }
 
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('Erro ao conectar ao banco:', err.stack);
-    return;
+export async function initializeDatabase() {
+  try {
+    const client = await pool.connect();
+    client.release();
+
+    console.log('Conectado ao banco!');
+    await ensureIndexes();
+    await ensureUserPrivacyColumns();
+    await ensureMissionTables();
+  } catch (error) {
+    console.error('Erro ao inicializar o banco:', error);
+    throw error;
   }
-  console.log('Conectado ao banco!');
-  release();
-  // After we successfully connect we run the index setup once
-  ensureIndexes();
-  ensureMissionTables();
-});
+}
 
 // Helper functions for transactions
 export async function withTransaction(callback) {

@@ -1,9 +1,10 @@
 import express from 'express';
 import { verifyToken } from '../../../middleware/verifyToken.js';
+import { authLimiter } from '../../../middleware/rateLimiter.js';
 import { validateRegister, validateLogin } from '../../../middleware/inputValidators.js';
 
 import {
-  addUser, loginUser, searchByGmail
+  addUser, loginUser, checkEmailAvailability, logoutUser, getCurrentUser
 } from '../controllers/authController.js';
 
 const router = express.Router();
@@ -43,7 +44,7 @@ const router = express.Router();
  *       500:
  *         description: Error registering user
  */
-router.post('/register', validateRegister, addUser);
+router.post('/register', authLimiter, validateRegister, addUser);
 
 // ============================
 // LOGIN - Authenticate user with email
@@ -80,7 +81,9 @@ router.post('/register', validateRegister, addUser);
  *       500:
  *         description: Error logging in user
  */
-router.post('/login', validateLogin, loginUser);
+router.post('/login', authLimiter, validateLogin, loginUser);
+router.post('/logout', logoutUser);
+router.get('/me', verifyToken, getCurrentUser);
 
 // ============================
 // SEARCH BY EMAIL - Get user public data
@@ -114,6 +117,6 @@ router.post('/login', validateLogin, loginUser);
  *       500:
  *         description: Error searching user
  */
-router.get('/gmail/:gmail', searchByGmail);
+router.get('/check-email/:gmail', authLimiter, checkEmailAvailability);
 
 export default router;

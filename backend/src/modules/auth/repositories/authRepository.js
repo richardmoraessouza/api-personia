@@ -53,16 +53,44 @@ export const createUser = async ({
 // LOGIN
 // =========================
 
+export const findUserById = async (id) => {
+  const query = `
+    SELECT
+      id,
+      nome,
+      gmail,
+      foto_perfil,
+      descricao,
+      frame,
+      username,
+      hide_favorite_character,
+      hide_recent_character,
+      hide_followers,
+      hide_following
+    FROM personia2.usuarios
+    WHERE id = $1
+    LIMIT 1
+  `;
+
+  const result = await db.query(query, [id]);
+  return result.rows[0];
+};
+
 export const findUserByGmail = async (gmail) => {
 
   const query = `
     SELECT
       id,
+      nome,
       gmail,
       foto_perfil,
       descricao,
       frame,
-      username
+      username,
+      hide_favorite_character,
+      hide_recent_character,
+      hide_followers,
+      hide_following
     FROM personia2.usuarios
     WHERE gmail = $1
   `;
