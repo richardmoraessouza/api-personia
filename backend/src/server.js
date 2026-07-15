@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import helmet from "helmet";
 import csrf from "csurf";
@@ -14,6 +15,7 @@ import missionsRouter from "./modules/missions/router/missionsRouter.js"
 import discoveryRouter from "./modules/discovery/routes/discoveryRouter.js";
 import ratingsRouter from "./modules/ratings/routes/ratingsRouter.js";
 import { initializeRedis, getRedisClient } from "./config/redis.js";
+import { initializeDatabase } from "./config/db.js";
 import cookieRouter from "./modules/cookies/routes/cookieRouter.js";
 import { sanitizeCookieHeaders } from "./middleware/cookieConsent.js";
 import swaggerUi from "swagger-ui-express";
@@ -30,7 +32,14 @@ if (!process.env.JWT_SECRET) {
 }
 
 const app = express();
+app.disable('x-powered-by');
 const PORT = 3001;
+const sessionSecret = process.env.SESSION_SECRET || (process.env.NODE_ENV === 'production' ? null : 'dev-session-secret-change-me');
+
+if (!sessionSecret) {
+  console.error('❌ SESSION_SECRET não configurado para produção');
+  process.exit(1);
+}
 
 // Documentação da API
 app.use(
@@ -42,7 +51,7 @@ app.use(
 // ==========================================
 // PROCESSAMENTO DE ORIGENS CORS (VIA .ENV)
 // ==========================================
-const corsOriginsEnv = process.env.CORS_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:5173';
+const corsOriginsEnv = process.env.CORS_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:3000,http://localhost:5173';
 const allowedOrigins = corsOriginsEnv
   .split(',')
   .map(origin => origin.trim())
@@ -84,6 +93,9 @@ app.use(helmet({
       scriptSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:"],
       connectSrc: ["'self'", "https://generativelanguage.googleapis.com", "http://localhost:3000", "http://localhost:3002"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'none'"],
     },
   },
   hsts: { 
@@ -108,14 +120,15 @@ const redisClient = getRedisClient();
 
 app.use(session({
   store: new RedisStore({ client: redisClient }),
-  secret: process.env.SESSION_SECRET || 'change-me-in-production-now',
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
+  name: 'eikon.sid',
   cookie: {
-    secure: process.env.NODE_ENV === 'production',  // HTTPS only em produção
-    httpOnly: true,                                   // Não acessível via JavaScript
-    sameSite: 'strict',                              // CSRF protection
-    maxAge: 24 * 60 * 60 * 1000                      // 24 horas
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000
   }
 }));
 
@@ -132,6 +145,7 @@ app.get('/csrf-token', csrfProtection, (req, res) => {
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
+app.use(cookieParser());
 
 // ==========================================
 // ROTAS DO SISTEMA
@@ -189,6 +203,12 @@ export { csrfProtection };
 // INICIALIZAÇÃO DO SERVIDOR
 // ==========================================
 async function startServer() {
+  try {
+    await initializeDatabase();
+  } catch (err) {
+    console.warn('⚠️ Banco indisponível; o servidor continuará sem depender do banco para rotas públicas de autenticação:', err.message);
+  }
+
   try {
     const redisOk = await initializeRedis();
     if (!redisOk) {

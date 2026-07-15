@@ -31,12 +31,11 @@ const extractToken = (req) => {
   return match ? match[1] : null;
 };
 
-export const verifyToken = (req, res, next) => {
+export const optionalVerifyToken = (req, res, next) => {
   const token = extractToken(req);
 
   if (!token) {
-    clearAuthCookie(res);
-    return res.status(401).json({ error: 'Token não fornecido', code: 'NO_TOKEN' });
+    return next();
   }
 
   try {
@@ -45,21 +44,14 @@ export const verifyToken = (req, res, next) => {
 
     if (!decoded || !decoded.id || !Number.isInteger(userId)) {
       clearAuthCookie(res);
-      return res.status(401).json({ error: 'Token inválido', code: 'INVALID_TOKEN' });
+      return next();
     }
 
     req.user = { ...decoded, id: userId };
-    return next();
   } catch (err) {
     clearAuthCookie(res);
-
-    if (err.name === 'TokenExpiredError') {
-      return res.status(401).json({ error: 'Sua sessão expirou.', code: 'SESSION_EXPIRED' });
-    }
-
-    return res.status(401).json({
-      error: 'Token inválido',
-      code: 'INVALID_TOKEN'
-    });
+    console.warn('[optionalVerifyToken] Token inválido ou expirado, continuando como visitante.');
   }
+
+  return next();
 };

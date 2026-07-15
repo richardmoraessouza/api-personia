@@ -86,8 +86,8 @@ export async function getCharacterByPublicId(publicId) {
 }
 
 /**
- * Smart function to get character by ID or public_id
- * Detects which type it is and calls the appropriate function
+ * Resolve character exclusively by public_id for chat flows.
+ * The chat routes should never depend on the internal numeric id.
  */
 export async function getCharacterByIdOrPublicId(identifier) {
   if (identifier === undefined || identifier === null || identifier === '') {
@@ -168,11 +168,14 @@ export const saveMessage = async (chatId, role, content, replyToId = null) => {
  * @param {number} messageId - Message ID to be deleted
  * @returns {Promise<boolean>} Returns true if the message was deleted
  */
-export const deleteMessage = async (messageId) => {
+export const deleteMessage = async (messageId, userId) => {
   const result = await db.query(
     `DELETE FROM personia2.messages 
-     WHERE id = $1`,
-    [messageId]
+     WHERE id = $1
+       AND chat_id IN (
+         SELECT id FROM personia2.chats WHERE usuario_id = $2
+       )`,
+    [messageId, userId]
   );
   return result.rowCount > 0;
 };
@@ -183,13 +186,16 @@ export const deleteMessage = async (messageId) => {
  * @param {boolean} isPinned - New pinned state (true to pin, false to unpin)
  * @returns {Promise<Object>} The updated message row
  */
-export const togglePinMessage = async (messageId, isPinned) => {
+export const togglePinMessage = async (messageId, isPinned, userId) => {
   const result = await db.query(
     `UPDATE personia2.messages 
      SET is_pinned = $2
      WHERE id = $1
+       AND chat_id IN (
+         SELECT id FROM personia2.chats WHERE usuario_id = $3
+       )
      RETURNING *`,
-    [messageId, isPinned]
+    [messageId, isPinned, userId]
   );
   return result.rows[0];
 };
@@ -199,13 +205,17 @@ export const togglePinMessage = async (messageId, isPinned) => {
  * @param {number} chatId - Chat Session ID
  * @returns {Promise<Array>} Array of pinned messages ordered chronologically
  */
-export const getPinnedMessages = async (chatId) => {
+export const getPinnedMessages = async (chatId, userId) => {
   const result = await db.query(
     `SELECT id, role, content, criado_em, reply_to_id
      FROM personia2.messages
-     WHERE chat_id = $1 AND is_pinned = true
+     WHERE chat_id = $1
+       AND is_pinned = true
+       AND chat_id IN (
+         SELECT id FROM personia2.chats WHERE usuario_id = $2
+       )
      ORDER BY criado_em ASC`,
-    [chatId]
+    [chatId, userId]
   );
   return result.rows;
 };
@@ -215,12 +225,15 @@ export const getPinnedMessages = async (chatId) => {
  * @param {number} messageId - Message ID to retrieve
  * @returns {Promise<Object|null>} The message object or null if not found
  */
-export const getMessageById = async (messageId) => {
+export const getMessageById = async (messageId, userId) => {
   const result = await db.query(
     `SELECT id, role, content, reply_to_id, is_pinned, criado_em
      FROM personia2.messages
-     WHERE id = $1`,
-    [messageId]
+     WHERE id = $1
+       AND chat_id IN (
+         SELECT id FROM personia2.chats WHERE usuario_id = $2
+       )`,
+    [messageId, userId]
   );
   return result.rows[0] || null;
 };

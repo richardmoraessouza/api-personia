@@ -37,7 +37,7 @@ export const clearCharacterTags = async (characterId) => {
  */
 export const getCharactersByTagSlug = async (tagSlug, limit = 20, offset = 0) => {
   const query = `
-    SELECT id, public_id, nome, fotoia, bio, descricao, visualizacoes, criado_em, tags_slugs
+    SELECT public_id, nome, fotoia, bio, descricao, visualizacoes, criado_em, tags_slugs
     FROM personia2.personagens
     WHERE $1 = ANY(tags_slugs) -- Procura o slug dentro do array de tags
     ORDER BY visualizacoes DESC, criado_em DESC

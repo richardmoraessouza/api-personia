@@ -1,5 +1,6 @@
 import * as likeRepository from '../repositories/likeRepository.js';
 import * as cacheService from '../../../services/cacheService.js';
+import { resolveCharacterId } from '../../characters/repositories/characterRepository.js';
 
 /**
  * CONFIGURAÇÃO DE CACHE
@@ -12,20 +13,29 @@ const CACHE_TTL = {
 
 // Toggle like for a character by a user
 export const toggleLikeService = async (usuarioId, personagemId) => {
-  const exists = await likeRepository.findLike(usuarioId, personagemId);
+  const resolvedPersonagemId = await resolveCharacterId(personagemId);
+
+  if (!resolvedPersonagemId) {
+    return {
+      status: 404,
+      error: 'Personagem não encontrado'
+    };
+  }
+
+  const exists = await likeRepository.findLike(usuarioId, resolvedPersonagemId);
 
   if (exists) {
-    await likeRepository.removeLike(usuarioId, personagemId);
+    await likeRepository.removeLike(usuarioId, resolvedPersonagemId);
   } else {
-    const wasInserted = await likeRepository.createLike(usuarioId, personagemId);
+    const wasInserted = await likeRepository.createLike(usuarioId, resolvedPersonagemId);
     if (!wasInserted) {
       // The like already existed (race condition), so remove it
-      await likeRepository.removeLike(usuarioId, personagemId);
+      await likeRepository.removeLike(usuarioId, resolvedPersonagemId);
     }
   }
 
   // Invalida caches relacionados ao novo like/unlike
-  await cacheService.cacheDel(`like:count:${personagemId}`);
+  await cacheService.cacheDel(`like:count:${resolvedPersonagemId}`);
   await cacheService.cacheDel(`like:user:${usuarioId}`);
 
   return {
@@ -37,11 +47,14 @@ export const toggleLikeService = async (usuarioId, personagemId) => {
 
 // Get total likes count for a character
 export const getLikesCountService = async (personagemId) => {
-  const cacheKey = `like:count:${personagemId}`;
+  const resolvedPersonagemId = await resolveCharacterId(personagemId);
+  if (!resolvedPersonagemId) return 0;
+
+  const cacheKey = `like:count:${resolvedPersonagemId}`;
   
   return await cacheService.cacheWithFallback(
     cacheKey,
-    () => likeRepository.countLikesByPersonagem(personagemId),
+    () => likeRepository.countLikesByPersonagem(resolvedPersonagemId),
     CACHE_TTL.LIKE_COUNT
   );
 };

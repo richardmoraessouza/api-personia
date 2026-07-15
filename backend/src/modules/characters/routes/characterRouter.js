@@ -2,8 +2,9 @@ import { Router } from "express";
 import { updateCharacter, search, getDataCharacter, getDataCharacterByPublicId, getSearchCharacter,
         createCharacterHandler, handleSaveRecentCharacter,
         handleGetRecentCharacters, getCharacterProfile, countCharacterView, countCharacterViewByPublicId,
-        getExploreCharacters } from "../controllers/characterController.js";
+        getExploreCharacters, updateCharacterVisibilityHandler } from "../controllers/characterController.js";
 import { verifyToken } from "../../../middleware/verifyToken.js";
+import { optionalVerifyToken } from "../../../middleware/optionalVerifyToken.js";
 import { 
   validateCharacterId, 
   validateUsuarioId,
@@ -29,13 +30,13 @@ const router = Router();
  *         schema:
  *           type: integer
  *     responses:
- *       200:
+ *       '200':
  *         description: Lista de personagens do usuário
- *       400:
+ *       '400':
  *         description: ID de usuário inválido
  */
 // Get characters by user ID
-router.get('/user-search-by-id/:usuarioId', validateUsuarioId, search);
+router.get('/user-search-by-id/:usuarioId', optionalVerifyToken, validateUsuarioId, search);
 
 /**
  * @swagger
@@ -51,9 +52,9 @@ router.get('/user-search-by-id/:usuarioId', validateUsuarioId, search);
  *         schema:
  *           type: string
  *     responses:
- *       200:
+ *       '200':
  *         description: Personagem encontrado
- *       400:
+ *       '400':
  *         description: Parâmetro de busca inválido
  */
 // Search character by name
@@ -73,12 +74,11 @@ router.get('/search-character', validateCharacterSearch, getSearchCharacter);
  *           type: integer
  *         description: Número da página (opcional)
  *     responses:
- *       200:
+ *       '200':
  *         description: Lista de personagens (metade populares + metade novos)
  */
 // Get characters for the Explore tab with pagination and division (Half Popular / Half New)
-router.get('/explore', getExploreCharacters); 
-
+router.get('/explore', getExploreCharacters);
 
 /**
  * @swagger
@@ -94,7 +94,7 @@ router.get('/explore', getExploreCharacters);
  *         schema:
  *           type: integer
  *     responses:
- *       200:
+ *       '200':
  *         description: Personagem encontrado
  *         content:
  *           application/json:
@@ -102,12 +102,12 @@ router.get('/explore', getExploreCharacters);
  *               id: 45
  *               nome: Naruto
  *               bio: Ninja da folha
- *       400:
+ *       '400':
  *         description: ID inválido
- *       404:
+ *       '404':
  *         description: Personagem não encontrado
  */
-router.get("/data-character-by-id/:id",validateCharacterId, getDataCharacter);
+router.get('/data-character-by-id/:id', optionalVerifyToken, validateCharacterId, getDataCharacter);
 
 /**
  * @swagger
@@ -123,7 +123,7 @@ router.get("/data-character-by-id/:id",validateCharacterId, getDataCharacter);
  *         schema:
  *           type: string
  *     responses:
- *       200:
+ *       '200':
  *         description: Personagem encontrado
  *         content:
  *           application/json:
@@ -131,13 +131,13 @@ router.get("/data-character-by-id/:id",validateCharacterId, getDataCharacter);
  *               id: 45
  *               nome: Naruto
  *               bio: Ninja da folha
- *               public_id: "abc123xyz"
- *       400:
+ *               public_id: abc123xyz
+ *       '400':
  *         description: publicId inválido
- *       404:
+ *       '404':
  *         description: Personagem não encontrado
  */
-router.get("/data-character-by-public-id/:publicId", getDataCharacterByPublicId);
+router.get('/data-character-by-public-id/:publicId', optionalVerifyToken, getDataCharacterByPublicId);
 
 /**
  * @swagger
@@ -159,21 +159,63 @@ router.get("/data-character-by-public-id/:publicId", getDataCharacterByPublicId)
  *       content:
  *         application/json:
  *           example:
- *             nome: "Naruto Uzumaki"
- *             bio: "Hokage da aldeia da folha"
- *             imagem: "url_da_imagem"
+ *             nome: Naruto Uzumaki
+ *             bio: Hokage da aldeia da folha
+ *             imagem: url_da_imagem
  *     responses:
- *       200:
+ *       '200':
  *         description: Personagem atualizado com sucesso
- *       400:
+ *       '400':
  *         description: Dados inválidos
- *       401:
+ *       '401':
  *         description: Não autorizado
- *       403:
+ *       '403':
  *         description: Sem permissão para editar este personagem
  */
 // Update character by ID (requires authentication)
-router.put("/update-character/:id", verifyToken, validateUpdateCharacter, updateCharacter);
+router.put('/update-character/:id', verifyToken, validateUpdateCharacter, updateCharacter);
+
+/**
+ * @swagger
+ * /character/update-visibility/{publicId}:
+ *   patch:
+ *     summary: Atualizar visibilidade do personagem (Público/Privado) - Requer autenticação
+ *     tags:
+ *       - Characters
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: publicId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - is_public
+ *             properties:
+ *               is_public:
+ *                 type: boolean
+ *                 description: Define se o bot será público (true) ou privado (false)
+ *           example:
+ *             is_public: false
+ *     responses:
+ *       '200':
+ *         description: Visibilidade atualizada com sucesso
+ *       '400':
+ *         description: O campo is_public deve ser um booleano válido
+ *       '401':
+ *         description: Não autorizado
+ *       '404':
+ *         description: Personagem não encontrado
+ */
+// Update character visibility by publicId (requires authentication)
+router.patch('/update-visibility/:publicId', verifyToken, updateCharacterVisibilityHandler);
 
 /**
  * @swagger
@@ -195,15 +237,15 @@ router.put("/update-character/:id", verifyToken, validateUpdateCharacter, update
  *       content:
  *         application/json:
  *           example:
- *             nome: "Novo Personagem"
- *             bio: "Descrição do personagem"
- *             imagem: "url_da_imagem"
+ *             nome: Novo Personagem
+ *             bio: Descrição do personagem
+ *             imagem: url_da_imagem
  *     responses:
- *       201:
+ *       '201':
  *         description: Personagem criado com sucesso
- *       400:
+ *       '400':
  *         description: Dados inválidos
- *       401:
+ *       '401':
  *         description: Não autorizado
  */
 // Create new character (requires authentication)
@@ -228,13 +270,13 @@ router.post('/create-character/:usuarioId', verifyToken, validateCreateCharacter
  *         schema:
  *           type: integer
  *     responses:
- *       201:
+ *       '201':
  *         description: Personagem salvo no histórico recente
- *       400:
+ *       '400':
  *         description: IDs inválidos
  */
 // Save recent character interaction (requires authentication)
-router.post('/recent-characters/:usuarioId/:personagemId', validateRecentCharacter, handleSaveRecentCharacter);
+router.post('/recent-characters/:usuarioId/:personagemId', verifyToken, validateRecentCharacter, handleSaveRecentCharacter);
 
 /**
  * @swagger
@@ -250,13 +292,13 @@ router.post('/recent-characters/:usuarioId/:personagemId', validateRecentCharact
  *         schema:
  *           type: integer
  *     responses:
- *       200:
+ *       '200':
  *         description: Lista dos últimos 10 personagens
- *       400:
+ *       '400':
  *         description: ID de usuário inválido
  */
 // Get list of 10 recent characters (requires authentication)
-router.get('/get-recent-characters/:usuarioId', validateUsuarioId, handleGetRecentCharacters);
+router.get('/get-recent-characters/:usuarioId', verifyToken, validateUsuarioId, handleGetRecentCharacters);
 
 /**
  * @swagger
@@ -274,11 +316,11 @@ router.get('/get-recent-characters/:usuarioId', validateUsuarioId, handleGetRece
  *         schema:
  *           type: integer
  *     responses:
- *       200:
+ *       '200':
  *         description: Histórico de visualizações
- *       401:
+ *       '401':
  *         description: Não autorizado
- *       404:
+ *       '404':
  *         description: Personagem não encontrado
  */
 // Get character view history (requires authentication)
@@ -300,11 +342,11 @@ router.get('/character-views/:id', verifyToken, validateCharacterId, getCharacte
  *         schema:
  *           type: integer
  *     responses:
- *       200:
+ *       '200':
  *         description: Visualização incrementada
- *       400:
+ *       '400':
  *         description: ID inválido
- *       401:
+ *       '401':
  *         description: Não autorizado
  */
 // Count character views
@@ -326,13 +368,13 @@ router.post('/increment-chat-views/:id', verifyToken, validateCharacterId, count
  *         schema:
  *           type: string
  *     responses:
- *       200:
+ *       '200':
  *         description: Visualização incrementada
- *       400:
+ *       '400':
  *         description: publicId inválido
- *       401:
+ *       '401':
  *         description: Não autorizado
- *       404:
+ *       '404':
  *         description: Personagem não encontrado
  */
 // Count character views by public_id

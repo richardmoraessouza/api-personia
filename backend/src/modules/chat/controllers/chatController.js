@@ -7,7 +7,11 @@ import * as chatService from '../services/chatService.js';
 export const saveTime = async (req, res) => {
   try {
     const { characterId, seconds } = req.body;
-    const userId = req.user.id;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Não autorizado' });
+    }
 
     if (!characterId || !seconds) {
       return res.status(400).json({ error: 'characterId and seconds are required' });
@@ -31,7 +35,11 @@ export const saveTime = async (req, res) => {
 export const getTime = async (req, res) => {
   try {
     const { characterId } = req.params;
-    const userId = req.user.id;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Não autorizado' });
+    }
 
     const record = await chatService.fetchConversationTime(userId, characterId);
     return res.status(200).json(record);
@@ -50,7 +58,11 @@ export const getTime = async (req, res) => {
 export const chatComPersonagem = async (req, res) => {
   const { personagemId } = req.params;
   const { message, replyToId } = req.body; // Extract replyToId from request body
-  const userId = req.user?.id || req.userId || 'anon';
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Não autorizado' });
+  }
 
   try {
     // Pass replyToId to the service (defaults to null if missing)
@@ -129,9 +141,14 @@ export const getHistoricoChat = async (req, res) => {
  */
 export const getMessageById = async (req, res) => {
   const { messageId } = req.params;
+  const authenticatedUserId = req.user?.id;
+
+  if (!authenticatedUserId) {
+    return res.status(401).json({ error: 'Não autorizado' });
+  }
 
   try {
-    const message = await chatService.getMessageByIdService(Number(messageId));
+    const message = await chatService.getMessageByIdService(Number(messageId), authenticatedUserId);
     
     if (!message) {
       return res.status(404).json({ error: 'Mensagem não encontrada.' });
@@ -140,6 +157,11 @@ export const getMessageById = async (req, res) => {
     return res.status(200).json(message);
   } catch (err) {
     console.error('Error fetching message by ID:', err);
+
+    if (err.message === 'INVALID_MESSAGE_ID' || err.message === 'INVALID_USER_ID') {
+      return res.status(400).json({ error: 'ID de mensagem inválido.' });
+    }
+
     return res.status(500).json({ error: 'Erro ao carregar mensagem.' });
   }
 };
@@ -175,8 +197,17 @@ export const limparMemoria = async (req, res) => {
 export const getHistory = async (req, res) => {
   try {
     const { userId, characterId } = req.params;
+    const authenticatedUserId = req.user?.id;
 
-    const history = await chatService.loadConversationService(Number(userId), Number(characterId));
+    if (!authenticatedUserId) {
+      return res.status(401).json({ error: 'Não autorizado' });
+    }
+
+    if (Number(userId) !== authenticatedUserId) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
+
+    const history = await chatService.loadConversationService(authenticatedUserId, Number(characterId));
     return res.status(200).json(history);
   } catch (error) {
     console.error('Error executing getHistory:', error);
@@ -195,10 +226,19 @@ export const createMessage = async (req, res) => {
   try {
     const { userId, characterId } = req.params;
     const { role, content, replyToId } = req.body; // Extract replyToId for message linking
+    const authenticatedUserId = req.user?.id;
+
+    if (!authenticatedUserId) {
+      return res.status(401).json({ error: 'Não autorizado' });
+    }
+
+    if (Number(userId) !== authenticatedUserId) {
+      return res.status(403).json({ error: 'Acesso negado' });
+    }
 
     // Forward the reply context parameters to the backend service
     const savedMessage = await chatService.sendMessageService(
-      Number(userId),
+      authenticatedUserId,
       Number(characterId),
       role,
       content,
@@ -224,18 +264,27 @@ export const createMessage = async (req, res) => {
 export const deleteMessage = async (req, res) => {
   try {
     const { id } = req.params;
+    const authenticatedUserId = req.user?.id;
+
+    if (!authenticatedUserId) {
+      return res.status(401).json({ error: 'Não autorizado' });
+    }
 
     // Pass the ID to the service layer for database deletion
-    const resultado = await chatService.deleteMessageService(Number(id));
+    const resultado = await chatService.deleteMessageService(Number(id), authenticatedUserId);
 
     return res.status(200).json(resultado);
   } catch (error) {
     console.error('[Backend Error] Erro ao deletar mensagem:', error);
-    
+
     if (error.message === 'MESSAGE_NOT_FOUND') {
       return res.status(404).json({ error: 'Mensagem não encontrada.' });
     }
-    
+
+    if (error.message === 'INVALID_MESSAGE_ID' || error.message === 'INVALID_USER_ID') {
+      return res.status(400).json({ error: 'ID de mensagem inválido.' });
+    }
+
     return res.status(500).json({ error: 'Erro interno do servidor.' });
   }
 };
@@ -251,13 +300,23 @@ export const togglePinMessage = async (req, res) => {
   try {
     const { id } = req.params;
     const { isPinned } = req.body;
+    const authenticatedUserId = req.user?.id;
+
+    if (!authenticatedUserId) {
+      return res.status(401).json({ error: 'Não autorizado' });
+    }
 
     // Update the pin status in the database
-    const msgAtualizada = await chatService.togglePinMessageService(Number(id), isPinned);
+    const msgAtualizada = await chatService.togglePinMessageService(Number(id), isPinned, authenticatedUserId);
 
     return res.status(200).json(msgAtualizada);
   } catch (error) {
     console.error('[Backend Error] Erro ao alterar pin da mensagem:', error);
+
+    if (error.message === 'INVALID_MESSAGE_ID' || error.message === 'INVALID_USER_ID') {
+      return res.status(400).json({ error: 'ID de mensagem inválido.' });
+    }
+
     return res.status(500).json({ error: error.message });
   }
 };
@@ -271,7 +330,13 @@ export const togglePinMessage = async (req, res) => {
 export const getPinnedMessages = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const pinnedMessages = await chatService.getChatPinnedMessages(chatId);
+    const authenticatedUserId = req.user?.id;
+
+    if (!authenticatedUserId) {
+      return res.status(401).json({ error: 'Não autorizado' });
+    }
+
+    const pinnedMessages = await chatService.getChatPinnedMessages(chatId, authenticatedUserId);
     return res.status(200).json(pinnedMessages);
   } catch (error) {
     return res.status(400).json({

@@ -148,7 +148,7 @@ router.delete('/:personagemId/limpar', verifyToken, validateCharacterId, chatCon
  *       200:
  *         description: Histórico encontrado
  */
-router.get('/:userId/:characterId/history', chatController.getHistory);
+router.get('/:userId/:characterId/history', verifyToken, chatController.getHistory);
 
 /**
  * @swagger
@@ -182,7 +182,7 @@ router.get('/:userId/:characterId/history', chatController.getHistory);
  *       400:
  *         description: Dados inválidos
  */
-router.post('/:userId/:characterId/messages', chatController.createMessage);
+router.post('/:userId/:characterId/messages', verifyToken, chatController.createMessage);
 
 /**
  * @swagger

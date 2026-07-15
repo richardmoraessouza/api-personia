@@ -39,13 +39,10 @@ export const handleValidationErrors = (req, res, next) => {
 // ==========================================
 
 export const validateRegister = [
-  body('gmail')
+  body('credential')
     .trim()
-    .isEmail()
-    .withMessage('Email inválido')
-    .isLength({ max: 255 })
-    .withMessage('Email muito longo (máximo 255 caracteres)')
-    .normalizeEmail(),  // ✅ Normaliza email (remove espaços, converte para lowercase)
+    .notEmpty()
+    .withMessage('Credential do Google é obrigatório'),
   
   body('nome')
     .trim()
@@ -85,10 +82,10 @@ export const validateRegister = [
 ];
 
 export const validateLogin = [
-  body('gmail')
+  body('credential')
     .trim()
-    .isEmail()
-    .withMessage('Email inválido'),
+    .notEmpty()
+    .withMessage('Credential do Google é obrigatório'),
   
   handleValidationErrors
 ];
@@ -138,6 +135,12 @@ export const validateCreateCharacter = [
     .isInt({ min: 1 })
     .withMessage('ID do usuário inválido')
     .toInt(),
+
+  body('is_public')
+    .optional()
+    .isBoolean()
+    .withMessage('Visibilidade deve ser um booleano')
+    .toBoolean(),
   
   body('nome')
     .trim()
@@ -180,11 +183,11 @@ export const validateCreateCharacter = [
     .trim()
     .custom((value) => {
       if (!value) return true; // Campo opcional
-      // ✅ Apenas HTTPS (mais seguro)
-      const isHttpsUrl = /^https:\/\/.+/.test(value);
+      const isHttpUrl = /^https?:\/\/.+/.test(value);
+      const isRelativePath = /^\/?[A-Za-z0-9._~!$&'()*+,;=:@/-]+(?:\.[A-Za-z0-9._~!$&'()*+,;=:@-]+)?$/.test(value);
       const isDataUrl = /^data:image\/\w+;base64,.+/.test(value);
-      if (!isHttpsUrl && !isDataUrl) {
-        throw new Error('URL da foto inválida (use HTTPS ou Base64)');
+      if (!isHttpUrl && !isRelativePath && !isDataUrl) {
+        throw new Error('URL da foto inválida (use HTTP/HTTPS, caminho relativo ou Base64)');
       }
       return true;
     }),
@@ -194,9 +197,24 @@ export const validateCreateCharacter = [
 
 export const validateUpdateCharacter = [
   param('id')
-    .isInt({ min: 1 })
+    .trim()
+    .notEmpty()
     .withMessage('ID do personagem inválido')
-    .toInt(),
+    .custom((value) => {
+      if (!value) {
+        throw new Error('ID do personagem inválido');
+      }
+      const trimmed = String(value).trim();
+      if (/^\d+$/.test(trimmed)) return true;
+      if (/^[A-Za-z0-9_-]+$/.test(trimmed)) return true;
+      throw new Error('ID do personagem inválido');
+    }),
+
+  body('is_public')
+    .optional()
+    .isBoolean()
+    .withMessage('Visibilidade deve ser um booleano')
+    .toBoolean(),
   
   body('nome')
     .optional()
@@ -227,11 +245,11 @@ export const validateUpdateCharacter = [
     .trim()
     .custom((value) => {
       if (!value) return true; // Campo opcional
-      // Aceita URLs HTTP/HTTPS ou Data URLs (base64)
-      const isUrl = /^https?:\/\/.+/.test(value);
+      const isHttpUrl = /^https?:\/\/.+/.test(value);
+      const isRelativePath = /^\/?[A-Za-z0-9._~!$&'()*+,;=:@/-]+(?:\.[A-Za-z0-9._~!$&'()*+,;=:@-]+)?$/.test(value);
       const isDataUrl = /^data:image\/\w+;base64,.+/.test(value);
-      if (!isUrl && !isDataUrl) {
-        throw new Error('URL da foto inválida (use HTTP/HTTPS ou Base64)');
+      if (!isHttpUrl && !isRelativePath && !isDataUrl) {
+        throw new Error('URL da foto inválida (use HTTP/HTTPS, caminho relativo ou Base64)');
       }
       return true;
     }),
@@ -253,9 +271,15 @@ export const validateChatMessage = [
     .trim()
     .notEmpty()
     .withMessage('Mensagem não pode ser vazia')
-    .isLength({ min: 1, max: 5000 })
-    .withMessage('Mensagem deve ter entre 1 e 5000 caracteres')
+    .isLength({ min: 1, max: 4000 })
+    .withMessage('Mensagem deve ter entre 1 e 4000 caracteres')
     .customSanitizer(value => sanitizeText(value)),  // ✅ Remove HTML/scripts
+
+  body('replyToId')
+    .optional({ nullable: true })
+    .isInt({ min: 1 })
+    .withMessage('replyToId inválido')
+    .toInt(),
   
   handleValidationErrors
 ];
@@ -267,9 +291,9 @@ export const validateChatMessage = [
 // Validar apenas personagem_id
 export const validatePersonagemId = [
   param('personagem_id')
-    .isInt({ min: 1 })
-    .withMessage('ID do personagem inválido')
-    .toInt(),
+    .trim()
+    .notEmpty()
+    .withMessage('ID do personagem inválido'),
   
   handleValidationErrors
 ];
@@ -292,9 +316,9 @@ export const validateSocialAction = [
     .toInt(),
   
   param('personagem_id')
-    .isInt({ min: 1 })
-    .withMessage('ID do personagem inválido')
-    .toInt(),
+    .trim()
+    .notEmpty()
+    .withMessage('ID do personagem inválido'),
   
   handleValidationErrors
 ];
