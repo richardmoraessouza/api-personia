@@ -332,4 +332,30 @@ router.post('/conversation-time', verifyToken, saveTime);
  */
 router.get('/conversation-time/:characterId', verifyToken, getTime);
 
+/**
+ * @swagger
+ * /chat/{publicId}/mensagens:
+ *   delete:
+ *     summary: Limpar toda a conversa com o personagem (apaga todas as mensagens)
+ *     tags:
+ *       - Chat
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: publicId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Public ID do personagem
+ *     responses:
+ *       200:
+ *         description: Conversa limpa com sucesso
+ *       404:
+ *         description: Personagem não encontrado
+ *       500:
+ *         description: Erro interno
+ */
+router.delete('/:publicId/mensagens', verifyToken, chatController.clearChatHistory);
+
 export default router;

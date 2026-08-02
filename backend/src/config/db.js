@@ -122,6 +122,28 @@ async function ensureUserPrivacyColumns() {
   }
 }
 
+async function ensureMessageMediaTable() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS personia2.message_media (
+        id SERIAL PRIMARY KEY,
+        message_id INTEGER NOT NULL REFERENCES personia2.messages(id) ON DELETE CASCADE,
+        media_type VARCHAR(50) DEFAULT 'audio',
+        media_data TEXT,
+        media_url TEXT,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_message_media_message_id
+      ON personia2.message_media(message_id)
+    `);
+  } catch (e) {
+    console.error('Erro ao criar tabela de mídia de mensagens:', e);
+  }
+}
+
 async function ensureMissionTables() {
   try {
     await pool.query(`
@@ -187,6 +209,7 @@ export async function initializeDatabase() {
     console.log('Conectado ao banco!');
     await ensureIndexes();
     await ensureUserPrivacyColumns();
+    await ensureMessageMediaTable();
     await ensureMissionTables();
   } catch (error) {
     console.error('Erro ao inicializar o banco:', error);

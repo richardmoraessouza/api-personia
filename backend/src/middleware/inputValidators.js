@@ -280,6 +280,12 @@ export const validateChatMessage = [
     .isInt({ min: 1 })
     .withMessage('replyToId inválido')
     .toInt(),
+
+  body('isVoiceCall')
+    .optional()
+    .isBoolean()
+    .withMessage('isVoiceCall inválido')
+    .toBoolean(),
   
   handleValidationErrors
 ];

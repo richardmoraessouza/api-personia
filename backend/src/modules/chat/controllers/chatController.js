@@ -57,7 +57,7 @@ export const getTime = async (req, res) => {
  */
 export const chatComPersonagem = async (req, res) => {
   const { personagemId } = req.params;
-  const { message, replyToId } = req.body; // Extract replyToId from request body
+  const { message, replyToId, isVoiceCall } = req.body;
   const userId = req.user?.id;
 
   if (!userId) {
@@ -65,8 +65,13 @@ export const chatComPersonagem = async (req, res) => {
   }
 
   try {
-    // Pass replyToId to the service (defaults to null if missing)
-    const response = await chatService.chatComPersonagemService(userId, personagemId, message, replyToId || null);
+    const response = await chatService.chatComPersonagemService(
+      userId,
+      personagemId,
+      message,
+      replyToId || null,
+      Boolean(isVoiceCall)
+    );
     return res.status(200).json(response);
   } catch (err) {
     console.error('Error inside chatComPersonagem controller:', err);
@@ -344,3 +349,19 @@ export const getPinnedMessages = async (req, res) => {
     });
   }
 };
+
+export const clearChatHistory = async (req, res) => {
+  const usuarioId = req.user.id; 
+  const { publicId } = req.params;
+
+
+  console.log(publicId, usuarioId);
+  try {
+    const clearChat = await chatService.clearChatHistoryService(usuarioId, publicId)
+    return res.status(200).json({ sucesso: true, mensagensApagadas: clearChat });
+
+  } catch (error) {
+    console.error('[Backend Error] Erro ao limpar histórico do chat:', error);
+    return res.status(500).json({ error: 'Erro interno do servidor.' });
+  }
+}
