@@ -127,6 +127,40 @@ export const findNameOtherUser = async (usuarioId) => {
     };
 }
 
+const FRAME_DEFINITIONS = [
+    { value: 'cat', file: 'frameCat.png', requiredLevel: 5, legacyValues: ['bronze'] },
+    { value: 'cyberpunk', file: 'frameCyberpunk.png', requiredLevel: 50 },
+    { value: 'foxy', file: 'frameFoxy.png', requiredLevel: 100 },
+    { value: 'rainbow', file: 'frameRainbow.png', requiredLevel: 30 },
+    { value: 'dark', file: 'frameDark.png', requiredLevel: 60, legacyValues: ['diamond'] },
+    { value: 'horror', file: 'frameHorror.png', requiredLevel: 80 },
+];
+
+const FRAME_LEVEL_REQUIREMENTS = FRAME_DEFINITIONS.map(({ file, requiredLevel }) => ({ file, requiredLevel }));
+
+const resolveFrameValue = (frame) => {
+    if (frame === undefined || frame === null) return null;
+    const normalized = String(frame).trim().toLowerCase();
+    if (!normalized) return null;
+
+    return FRAME_DEFINITIONS.find((definition) => {
+        const legacyValues = definition.legacyValues ?? [];
+        const fileName = definition.file.toLowerCase();
+        return (
+            definition.value === normalized ||
+            fileName === normalized ||
+            fileName.replace(/\.png$/i, '') === normalized ||
+            legacyValues.includes(normalized)
+        );
+    })?.value ?? null;
+};
+
+const isFrameUnlocked = (frameValue, nivel) => {
+    const definition = FRAME_DEFINITIONS.find((item) => item.value === frameValue);
+    if (!definition) return false;
+    return Number(nivel) >= definition.requiredLevel;
+};
+
 // update frame user
 export const updateFrameService = async (usuarioId, frame) => {
     const parsedUserId = Number(usuarioId);
@@ -137,33 +171,46 @@ export const updateFrameService = async (usuarioId, frame) => {
     const normalizedFrame = frame === undefined || frame === null ? null : String(frame).trim();
     const finalFrame = normalizedFrame === '' ? null : normalizedFrame;
 
-    if (finalFrame) {
-        const allowedFrames = new Set(userRepository.getFrameUnlockCatalog().map(({ frameName }) => frameName));
-        const unlockedFrames = await userRepository.getUnlockedFramesForUser(parsedUserId);
-
-        if (!allowedFrames.has(finalFrame)) {
+    if (finalFrame !== null) {
+        const resolvedValue = resolveFrameValue(finalFrame);
+        if (!resolvedValue) {
             throw new Error('FRAME_INVALIDA');
         }
 
-        if (!unlockedFrames.includes(finalFrame)) {
-            throw new Error('FRAME_NAO_DESBLOQUEADA');
+        const levelUser = await userRepository.findLevelUser(parsedUserId);
+        if (!levelUser) {
+            throw new Error('USUARIO_NAO_ENCONTRADO');
         }
+
+        if (!isFrameUnlocked(resolvedValue, Number(levelUser.nivel || 0))) {
+            throw new Error('FRAME_BLOQUEADA');
+        }
+
+        const frameUser = await userRepository.updateFrameUserById(parsedUserId, resolvedValue);
+        if (frameUser === undefined) {
+            throw new Error('USUARIO_NAO_ENCONTRADO');
+        }
+
+        await cacheService.cacheDel(`user:miniprofile:${parsedUserId}`);
+        await cacheService.cacheDel(`user:name:${parsedUserId}`);
+        await cacheService.cacheDel(`followers:${parsedUserId}`);
+        await cacheService.cacheDel(`following:${parsedUserId}`);
+
+        return { frame: frameUser };
     }
 
-    const frameUser = await userRepository.updateFrameUserById(parsedUserId, finalFrame);
+    const frameUser = await userRepository.updateFrameUserById(parsedUserId, null);
 
     if (frameUser === undefined) {
         throw new Error('USUARIO_NAO_ENCONTRADO');
     }
-
-    const unlockedFrames = await userRepository.getUnlockedFramesForUser(parsedUserId);
 
     await cacheService.cacheDel(`user:miniprofile:${parsedUserId}`);
     await cacheService.cacheDel(`user:name:${parsedUserId}`);
     await cacheService.cacheDel(`followers:${parsedUserId}`);
     await cacheService.cacheDel(`following:${parsedUserId}`);
 
-    return { frame: frameUser, unlocked_frames: unlockedFrames };
+    return { frame: frameUser };
 }
 
 // Shows user data in mini profile
@@ -187,6 +234,28 @@ export const getDataMiniProfileService = async (usuarioId) => {
 
     return miniProfile;
 }
+export const getFrameUnlocksService = async (usuarioId) => {
+    if (!usuarioId || isNaN(usuarioId)) {
+        throw new Error('ID_INVALIDO');
+    }
+
+    const levelUser = await userRepository.findLevelUser(usuarioId);
+    if (!levelUser) {
+        return null;
+    }
+
+    const nivel = Number(levelUser.nivel || 0);
+    const frames = FRAME_LEVEL_REQUIREMENTS.map(({ file, requiredLevel }) => ({
+        file,
+        unlocked: nivel >= requiredLevel,
+        requiredLevel,
+    }));
+
+    return {
+        nivel,
+        frames,
+    };
+};
 
 // search user level by ID
 export const getLevelUserService = async (usuarioId) => {
@@ -195,7 +264,6 @@ export const getLevelUserService = async (usuarioId) => {
     }
 
     const levelUser = await userRepository.findLevelUser(usuarioId);
-
     return levelUser ? levelUser.nivel : null;
 }
 

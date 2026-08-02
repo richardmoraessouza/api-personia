@@ -1,8 +1,9 @@
 import * as chatRepository from '../repositories/chatRepository.js';
 import * as missionRepository from '../../../modules/missions/repositories/missionRepository.js'; 
 import buildPersonPrompt from '../utils/buildPersonPrompt.js';
+
 import { generateContent } from '../utils/geminiClient.js';
-import {CHAT_RULES, validateMessage, REPLY_INSTRUCTIONS, REPLY_TAG_REGEX, ID_PREFIX_REGEX, REPLY_TAG_FAILSAFE_REGEX, ID_PREFIX_FAILSAFE_REGEX, stripLeadingEcho } from '../../../rules/chatRules.js';
+import { CHAT_RULES, validateMessage, REPLY_INSTRUCTIONS, VOICE_CALL_INSTRUCTIONS, REPLY_TAG_REGEX, ID_PREFIX_REGEX, REPLY_TAG_FAILSAFE_REGEX, ID_PREFIX_FAILSAFE_REGEX, stripLeadingEcho } from '../../../rules/chatRules.js';
 import { detectUserAction, detectCharacterSays } from '../../../rules/missionDetector.js';
 
 const MAX_SESSION_SECONDS = 8 * 60 * 60;
@@ -37,12 +38,13 @@ export const fetchConversationTime = async (userId, characterId) => {
   return await chatRepository.getConversationTime(userId, character.id);
 };
 
-function buildGeminiContents(systemPrompt, userMessage, history) {
+function buildGeminiContents(systemPrompt, userMessage, history, isVoiceCall = false) {
+  const trailingInstructions = isVoiceCall ? VOICE_CALL_INSTRUCTIONS : REPLY_INSTRUCTIONS;
   const contents = [];
 
   contents.push({
     role: 'model',
-    parts: [{ text: `${systemPrompt || 'You are a character. Respond naturally and directly.'}\n${REPLY_INSTRUCTIONS}` }]
+    parts: [{ text: `${systemPrompt || 'You are a character. Respond naturally and directly.'}\n${trailingInstructions}` }]
   });
 
   for (const msg of history) {
@@ -90,7 +92,7 @@ async function buildEmotionInstructions() {
   }
 }
 
-export async function chatComPersonagemService(userId, personajeId, message, replyToId = null) {
+export async function chatComPersonagemService(userId, personajeId, message, replyToId = null, isVoiceCall = false) {
   const normalizedUserId = Number(userId);
   if (!Number.isInteger(normalizedUserId) || normalizedUserId < 1) {
     throw new Error('INVALID_PARAMETERS');
@@ -101,12 +103,16 @@ export async function chatComPersonagemService(userId, personajeId, message, rep
     throw new Error('INVALID_PARAMETERS');
   }
 
+  const normalizedText = typeof message === 'string' ? message.trim() : '';
+  if (!normalizedText || normalizedText.length === 0) {
+    throw new Error('Mensagem não pode ser vazia');
+  }
+
   const validation = validateMessage(message);
   if (!validation.valid) {
     throw new Error(validation.error);
   }
-
-  if (typeof message !== 'string' || message.trim().length > 4000) {
+  if (message.length > 4000) {
     throw new Error('Mensagem muito longa');
   }
 
@@ -123,7 +129,7 @@ export async function chatComPersonagemService(userId, personajeId, message, rep
   }
 
   try {
-    const systemPrompt = buildPersonPrompt(character);
+    const systemPrompt = buildPersonPrompt(character, isVoiceCall);
     const history = await loadConversationService(normalizedUserId, personajeId);
 
     const primeiraMensagemDoChat = history.length === 0;
@@ -132,7 +138,7 @@ export async function chatComPersonagemService(userId, personajeId, message, rep
     const emotionInstructions = await buildEmotionInstructions();
     const fullSystemPrompt = `${systemPrompt}${emotionInstructions}`;
 
-    const contents = buildGeminiContents(fullSystemPrompt, message, history);
+    const contents = buildGeminiContents(fullSystemPrompt, message, history, isVoiceCall);
 
     const result = await generateContent(contents);
     console.log(`[TOKENS] input: ${result.tokens.input} | output: ${result.tokens.output} | total: ${result.tokens.total}`);
@@ -202,33 +208,39 @@ export async function chatComPersonagemService(userId, personajeId, message, rep
     const validHistoryIds = new Set(history.map((m) => m.id));
 
     const parsedMessages = rawMessages.map((m) => {
-    const cleanedIdPrefix = m.replace(ID_PREFIX_REGEX, '');
-    const match = cleanedIdPrefix.match(REPLY_TAG_REGEX);
+      const cleanedIdPrefix = m.replace(ID_PREFIX_REGEX, '');
+      const match = cleanedIdPrefix.match(REPLY_TAG_REGEX);
 
-    let text;
-    let replyToId = null;
+      let text;
+      let replyToId = null;
 
-    if (match) {
-      const refId = Number(match[1]);
-      text = cleanedIdPrefix.replace(REPLY_TAG_REGEX, '').trim();
-      replyToId = validHistoryIds.has(refId) ? refId : null;
-    } else {
-      text = cleanedIdPrefix;
-    }
+      if (match) {
+        const refId = Number(match[1]);
+        text = cleanedIdPrefix.replace(REPLY_TAG_REGEX, '').trim();
+        replyToId = validHistoryIds.has(refId) ? refId : null;
+      } else {
+        text = cleanedIdPrefix;
+      }
 
-    text = stripLeadingEcho(text);
+      text = stripLeadingEcho(text);
 
-    // failsafe final: garante que nenhum [id:NUMERO] nem [[REPLY:NUMERO]] sobrevive,
-    // não importa onde a IA colocou
-    text = text
-      .replace(REPLY_TAG_FAILSAFE_REGEX, '')
-      .replace(ID_PREFIX_FAILSAFE_REGEX, '')
-      .trim();
+      // failsafe final: garante que nenhum [id:NUMERO] nem [[REPLY:NUMERO]] sobrevive,
+      // não importa onde a IA colocou
+      text = text
+        .replace(REPLY_TAG_FAILSAFE_REGEX, '')
+        .replace(ID_PREFIX_FAILSAFE_REGEX, '')
+        .trim();
 
-    return { text, replyToId };
-  }).filter((m) => m.text);
+      return { text, replyToId };
+    }).filter((m) => m.text);
 
-    const savedUserMessage = await sendMessageService(normalizedUserId, personajeId, 'user', message, normalizedReplyToId);
+    const savedUserMessage = await sendMessageService(
+      normalizedUserId,
+      personajeId,
+      'user',
+      message,
+      normalizedReplyToId
+    );
 
     const savedBotMessages = [];
     for (const { text, replyToId: botReplyToId } of parsedMessages) {
@@ -296,7 +308,9 @@ export const loadConversationService = async (userId, characterId, limit = 30, o
 };
 
 export const sendMessageService = async (userId, characterId, role, content, replyToId = null) => {
-  if (!content || !role || !userId || !characterId) {
+  const hasText = typeof content === 'string' && content.trim().length > 0;
+
+  if (!role || !userId || !characterId || !hasText) {
     throw new Error('ROLE_AND_CONTENT_REQUIRED');
   }
 
@@ -392,3 +406,20 @@ export const _internal = {
   buildGeminiContents,
   extractGeminiResponse
 };
+
+export const clearChatHistoryService = async (usuarioId, publicId) => {
+  if (!usuarioId || !publicId) {
+    throw new Error('Chat ID and user ID are required');
+  }
+
+  const personagem = await chatRepository.getCharacterByIdOrPublicId(publicId);
+  if (!personagem) {
+    const erro = new Error('Personagem não encontrado.');
+    erro.status = 404;
+    throw erro;
+  }
+
+  const chatId = await chatRepository.getOrCreateChatId(usuarioId, personagem.id);
+
+  return await chatRepository.DeleteclearChatHistory(chatId, usuarioId);
+}

@@ -175,8 +175,12 @@ export const updateFrame = async (req, res) => {
       return res.status(400).json({ error: 'Frame inválida.' });
     }
 
-    if (err.message === 'FRAME_NAO_DESBLOQUEADA') {
-      return res.status(403).json({ error: 'Essa moldura ainda não foi desbloqueada.' });
+    if (err.message === 'FRAME_BLOQUEADA') {
+      return res.status(403).json({ error: 'Frame bloqueada para o seu nível.' });
+    }
+
+    if (err.message === 'USUARIO_NAO_ENCONTRADO') {
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
     }
 
     return res.status(500).json({ error: 'Internal server error' });
@@ -207,6 +211,32 @@ export const getLevelUser = async (req, res) => {
   } catch (err) {
     console.error('Error searching user level:', err);
     return res.status(500).json({ error: 'Error searching user level.' });
+  }
+}
+
+export const getFrameUnlocks = async (req, res) => {
+  const { usuarioId } = req.params;
+  const authenticatedUserId = Number(req.user?.id);
+
+  if (!usuarioId || isNaN(usuarioId)) {
+    return res.status(400).json({ error: 'Invalid user ID.' });
+  }
+
+  if (!Number.isInteger(authenticatedUserId) || authenticatedUserId !== Number(usuarioId)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  try {
+    const frameStatus = await userService.getFrameUnlocksService(usuarioId);
+
+    if (!frameStatus) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    return res.status(200).json(frameStatus);
+  } catch (err) {
+    console.error('Error searching frame unlocks:', err);
+    return res.status(500).json({ error: 'Error searching frame unlocks.' });
   }
 }
 

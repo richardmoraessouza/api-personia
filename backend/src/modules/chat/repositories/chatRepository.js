@@ -140,8 +140,18 @@ export const getChatHistory = async (chatId, limit = 30, offset = 0) => {
     [chatId, limit, offset]
   );
 
-  // Still reverse the chunk so it renders from oldest to newest in the UI box
-  return result.rows.reverse();
+  const rows = result.rows.reverse();
+  const enriched = [];
+
+  for (const row of rows) {
+    const media = await getMessageMedia(row.id);
+    enriched.push({
+      ...row,
+      media,
+    });
+  }
+
+  return enriched;
 };
 
 /**
@@ -152,7 +162,7 @@ export const getChatHistory = async (chatId, limit = 30, offset = 0) => {
  * @param {number|null} replyToId - Optional ID of the message being replied to
  * @returns {Promise<Object>} The inserted message row
  */
-export const saveMessage = async (chatId, role, content, replyToId = null) => {
+export const saveMessage = async (chatId, role, content, replyToId = null, mediaPayload = null) => {
   const result = await db.query(
     `INSERT INTO personia2.messages (chat_id, role, content, reply_to_id)
      VALUES ($1, $2, $3, $4)
@@ -160,7 +170,37 @@ export const saveMessage = async (chatId, role, content, replyToId = null) => {
     [chatId, role, content, replyToId]
   );
 
+  const savedMessage = result.rows[0];
+
+  if (mediaPayload?.mediaData) {
+    await createMessageMedia(savedMessage.id, mediaPayload.mediaType || 'audio', mediaPayload.mediaData, mediaPayload.mediaUrl || null);
+  }
+
+  return {
+    ...savedMessage,
+    media: mediaPayload?.mediaData ? [{ media_type: mediaPayload.mediaType || 'audio', media_data: mediaPayload.mediaData, media_url: mediaPayload.mediaUrl || null }] : [],
+  };
+};
+
+export const createMessageMedia = async (messageId, mediaType = 'audio', mediaData = null, mediaUrl = null) => {
+  const result = await db.query(
+    `INSERT INTO personia2.message_media (message_id, media_type, media_data, media_url)
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`,
+    [messageId, mediaType, mediaData, mediaUrl]
+  );
   return result.rows[0];
+};
+
+export const getMessageMedia = async (messageId) => {
+  const result = await db.query(
+    `SELECT id, media_type, media_data, media_url, criado_em
+     FROM personia2.message_media
+     WHERE message_id = $1
+     ORDER BY criado_em ASC`,
+    [messageId]
+  );
+  return result.rows;
 };
 
 /**
@@ -288,3 +328,36 @@ export function clearPersonagemCache(personagemId) {
 export function clearAllCache() {
   Object.keys(personagemCache).forEach(key => delete personagemCache[key]);
 }
+
+/**
+ * Delete ALL messages from a chat 
+ * @param {number} chatId - Chat Session ID
+ * @param {number} userId - User ID (garante que só o dono do chat pode limpar)
+ * @returns {Promise<number>} Quantidade de mensagens apagadas
+ */
+export const DeleteclearChatHistory = async (chatId, userId) => {
+  // Apaga primeiro as mídias das mensagens desse chat (caso não haja
+  // ON DELETE CASCADE configurado na FK de message_media -> messages)
+  await db.query(
+    `DELETE FROM personia2.message_media
+     WHERE message_id IN (
+       SELECT id FROM personia2.messages
+       WHERE chat_id = $1
+         AND chat_id IN (
+           SELECT id FROM personia2.chats WHERE usuario_id = $2
+         )
+     )`,
+    [chatId, userId]
+  );
+
+  const result = await db.query(
+    `DELETE FROM personia2.messages
+     WHERE chat_id = $1
+       AND chat_id IN (
+         SELECT id FROM personia2.chats WHERE usuario_id = $2
+       )`,
+    [chatId, userId]
+  );
+
+  return result.rowCount;
+};

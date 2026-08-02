@@ -1,11 +1,14 @@
 import { GENERAL_CHARACTER_RULES, FICTIONAL_CHARACTER_RULES, PERSON_CHARACTER_RULES, CONVERSATION_STYLE_RULES, EMOTION_INSTRUCTIONS} from '../../../rules/chatRules.js';
 
-export default function buildPersonPrompt(personagem = {}) {
+export default function buildPersonPrompt(personagem = {}, isVoiceCall = false) {
   const p = personagem;
   if (!p || !p.tipo_personagem) return '';
 
-  const styleRules = CONVERSATION_STYLE_RULES[p.conversation_style] 
-    ?? CONVERSATION_STYLE_RULES['Modo Direto'];
+  // Na ligação de voz o estilo de texto (emoji, "kkkk", vc/pq etc.) não se aplica —
+  // quem manda o tom nesse caso é o VOICE_CALL_INSTRUCTIONS, então não injetamos o styleRules aqui.
+  const styleRules = isVoiceCall
+    ? ''
+    : (CONVERSATION_STYLE_RULES[p.conversation_style] ?? CONVERSATION_STYLE_RULES['Modo Direto']);
 
   const regrasGerais = `
   ${GENERAL_CHARACTER_RULES}
@@ -43,9 +46,7 @@ export default function buildPersonPrompt(personagem = {}) {
     `;
   }
 
-
   if (p.tipo_personagem === 'person' && p.is_modo_rapido === true) {
-  
     return `
         ${p.nome}
         ${p.descricao}

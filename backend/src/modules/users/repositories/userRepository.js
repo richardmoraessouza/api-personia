@@ -1,14 +1,5 @@
 import db from '../../../config/db.js';
 
-const FRAME_UNLOCKS = [
-  { requiredLevel: 5, frameName: 'cat' },
-  { requiredLevel: 19, frameName: 'cyberpunk' },
-  { requiredLevel: 10, frameName: 'foxy' },
-  { requiredLevel: 20, frameName: 'rainbow' },
-  { requiredLevel: 35, frameName: 'dark' },
-  { requiredLevel: 88, frameName: 'horror' },
-];
-
 export const FindByid = async (id) => {
     const result = await db.query(`
         SELECT id, nome, foto_perfil, descricao, username
@@ -108,63 +99,6 @@ export const updateProfileUserById = async (id, {nome, foto_perfil, descricao, u
     return result.rows[0] || null;
 }
 
-export const getFrameUnlockCatalog = () => FRAME_UNLOCKS;
-
-export const getUnlockedFramesForUser = async (usuarioId) => {
-    const client = await db.connect();
-
-    try {
-        await client.query('BEGIN');
-
-        const userLevelResult = await client.query(`
-            SELECT nivel
-            FROM personia2.usuarios
-            WHERE id = $1
-        `, [usuarioId]);
-
-        const currentLevel = Number(userLevelResult.rows[0]?.nivel ?? 1) || 1;
-
-        await syncUnlockedFramesInConnection(client, usuarioId, currentLevel);
-
-        const result = await client.query(`
-            SELECT frame_name
-            FROM personia2.user_unlocked_frames
-            WHERE user_id = $1
-            ORDER BY required_level, frame_name
-        `, [usuarioId]);
-
-        await client.query('COMMIT');
-
-        return result.rows.map((row) => row.frame_name);
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-};
-
-const syncUnlockedFramesInConnection = async (client, usuarioId, currentLevel) => {
-    const existingResult = await client.query(`
-        SELECT frame_name FROM personia2.user_unlocked_frames WHERE user_id = $1
-    `, [usuarioId]);
-
-    const unlockedSet = new Set(existingResult.rows.map((row) => row.frame_name));
-    const toInsert = FRAME_UNLOCKS.filter(({ requiredLevel, frameName }) => {
-        return currentLevel >= requiredLevel && !unlockedSet.has(frameName);
-    });
-
-    if (toInsert.length > 0) {
-        await Promise.all(toInsert.map(({ frameName, requiredLevel }) => client.query(`
-            INSERT INTO personia2.user_unlocked_frames (user_id, frame_name, required_level)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (user_id, frame_name) DO NOTHING
-        `, [usuarioId, frameName, requiredLevel])));
-    }
-
-    return toInsert.map(({ frameName, requiredLevel }) => ({ frame_name: frameName, required_level: requiredLevel }));
-};
-
 // update frame user
 export const updateFrameUserById = async (usuarioId, frame) => {
     const result = await db.query(`
@@ -214,8 +148,7 @@ export const findDataMiniProfile = async (usuarioId) => {
     const user = result.rows[0] || null;
     if (!user) return null;
 
-    const unlockedFrames = await getUnlockedFramesForUser(usuarioId);
-    return { ...user, unlocked_frames: unlockedFrames };
+    return user;
 }
 
 // Search user level by ID
@@ -277,14 +210,11 @@ export const updateXpAndLevel = async (usuarioId, xpGanho) => {
       WHERE id = $1
     `, [usuarioId, novoNivel, novoXp]);
 
-    const unlockedFrames = await syncUnlockedFramesInConnection(client, usuarioId, novoNivel);
-
     await client.query('COMMIT');
 
     return {
       nivel: novoNivel,
       xp_atual: novoXp,
-      unlocked_frames: unlockedFrames,
       frame,
     };
   } catch (error) {
@@ -329,12 +259,9 @@ export const updateXpAndLevelWithClient = async (client, usuarioId, xpGanho) => 
         WHERE id = $1
     `, [usuarioId, novoNivel, novoXp]);
 
-    const unlockedFrames = await syncUnlockedFramesInConnection(client, usuarioId, novoNivel);
-
     return {
         nivel: novoNivel,
         xp_atual: novoXp,
-        unlocked_frames: unlockedFrames,
         frame,
     };
 };
