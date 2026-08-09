@@ -37,7 +37,7 @@ if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
 
 const app = express();
 app.disable('x-powered-by');
-const PORT = 3001;
+const PORT = Number(process.env.PORT || 3001);
 const sessionSecret = process.env.SESSION_SECRET || (process.env.NODE_ENV === 'production' ? null : 'dev-session-secret-change-me');
 
 if (!sessionSecret && process.env.NODE_ENV === 'production') {
@@ -51,6 +51,10 @@ app.use(
   swaggerUi.serve,
   swaggerUi.setup(swaggerSpec)
 );
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 // ==========================================
 // PROCESSAMENTO DE ORIGENS CORS (VIA .ENV)
@@ -66,6 +70,7 @@ if (allowedOrigins.length === 0) {
   process.exit(1);
 }
 
+console.log(`✅ CORS configurado para as origens: ${allowedOrigins.join(', ')}`);
 // ==========================================
 // CONFIGURAÇÃO DE CORS RESTRITIVO (NO TOPO)
 // ==========================================
@@ -81,8 +86,8 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Access-Token', 'X-CSRF-Token']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Access-Token', 'X-CSRF-Token', 'x-anon-id', 'x-guest-id']
 }));
 
 // ==========================================

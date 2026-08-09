@@ -33,7 +33,7 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password}
       REDIS_DB: 0
       NODE_ENV: ${NODE_ENV:-development}
-      PORT: ${PORT:-3000}
+      PORT: ${PORT:-3001}
       JWT_SECRET: ${JWT_SECRET}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GEMINI_API_KEY2: ${GEMINI_API_KEY2}
@@ -42,7 +42,7 @@ services:
       GEMINI_API_KEY5: ${GEMINI_API_KEY5}
       PERSON_SERVICE_URL: ${PERSON_SERVICE_URL}
     ports:
-      - "${PORT:-3000}:${PORT:-3000}"
+      - "${PORT:-3001}:3001"
     depends_on:
       redis:
         condition: service_healthy

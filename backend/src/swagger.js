@@ -20,7 +20,10 @@ const options = {
       { bearerAuth: [] }   
     ]
   },
-  apis: ['./modules/**/routes/*.js'],
+  apis: [
+    './modules/**/routes/**/*.js',
+    './modules/**/router/**/*.js'
+  ],
 };
 
 export default swaggerJsdoc(options);

@@ -22,7 +22,7 @@ const resolveAuthenticatedUserId = async (req) => {
 export const saveTime = async (req, res) => {
   try {
     const { characterId, seconds } = req.body;
-    const userId = req.user?.id;
+    const userId = await resolveAuthenticatedUserId(req);
 
     if (!userId) {
       return res.status(401).json({ error: 'Não autorizado' });
@@ -50,7 +50,7 @@ export const saveTime = async (req, res) => {
 export const getTime = async (req, res) => {
   try {
     const { characterId } = req.params;
-    const userId = req.user?.id;
+    const userId = await resolveAuthenticatedUserId(req);
 
     if (!userId) {
       return res.status(401).json({ error: 'Não autorizado' });
