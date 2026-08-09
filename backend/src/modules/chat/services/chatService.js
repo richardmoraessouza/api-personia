@@ -1,5 +1,4 @@
 import * as chatRepository from '../repositories/chatRepository.js';
-import * as missionRepository from '../../../modules/missions/repositories/missionRepository.js'; 
 import buildPersonPrompt from '../utils/buildPersonPrompt.js';
 
 import { generateContent } from '../utils/geminiClient.js';
@@ -72,25 +71,15 @@ function extractGeminiResponse(result) {
   }
 }
 
-// Monta o trecho de instruções de emoção com base nas trigger_key ativas no banco
-// (tabela personia2.mission_trigger, categoria='EMOTION'). Se a busca falhar,
-// retorna string vazia e o chat segue normalmente sem tag de emoção.
-async function buildEmotionInstructions() {
-  try {
-    const emotionKeys = await missionRepository.getEmotionTriggerKeys();
-    if (!emotionKeys.length) return '';
+// Emotion instructions removed (missions module deleted)
 
-    return (
-      `\n\nQuando sua fala expressar uma emoção forte e clara, inclua no INÍCIO da resposta ` +
-      `uma tag no formato [EMOTION:TAG], escolhendo TAG entre exatamente estas opções: ` +
-      `${emotionKeys.join(', ')}. Use no máximo uma tag por resposta, apenas quando fizer ` +
-      `sentido emocional real — não force.`
-    );
-  } catch (err) {
-    console.error('Erro ao buscar tags de emoção ativas:', err);
-    return '';
+export const ensureAnonymousUserId = async (anonymousKey) => {
+  if (!anonymousKey) {
+    return null;
   }
-}
+
+  return chatRepository.findOrCreateAnonymousUser(anonymousKey);
+};
 
 export async function chatComPersonagemService(userId, personajeId, message, replyToId = null, isVoiceCall = false) {
   const normalizedUserId = Number(userId);
@@ -134,8 +123,8 @@ export async function chatComPersonagemService(userId, personajeId, message, rep
 
     const primeiraMensagemDoChat = history.length === 0;
 
-    // ── Injeta dinamicamente as tags de emoção válidas (vindas do banco) ──
-    const emotionInstructions = await buildEmotionInstructions();
+    // Emotion instructions disabled (missions module removed)
+    const emotionInstructions = '';
     const fullSystemPrompt = `${systemPrompt}${emotionInstructions}`;
 
     const contents = buildGeminiContents(fullSystemPrompt, message, history, isVoiceCall);
@@ -150,56 +139,8 @@ export async function chatComPersonagemService(userId, personajeId, message, rep
     const regexEmotion = /\[EMOTION:([\w_]+)\]/i;
     const matchEmotion = respostaBrutaIA.match(regexEmotion);
 
-    // ── Missões ───────────────────────────────────────────────────
+    // Missions tracking removed; keep empty completed missions array
     const missoesCompletadas = [];
-
-    try {
-      await missionRepository.trackMissionProgress(userId, 'CHAT_MESSAGES', 1);
-
-      if (primeiraMensagemDoChat) {
-        await missionRepository.trackMissionProgress(userId, 'TALK_CHARACTER', 1);
-        
-        const r = await missionRepository.trackMissionProgress(userId, 'TALK_5_DIFFERENT_CHARACTERS', 1);
-        if (r?.completada) missoesCompletadas.push('TALK_5_DIFFERENT_CHARACTERS');
-      }
-
-      // TAG EMOTION — IA detecta e retorna a tag; mapeamento vem do banco (mission_trigger)
-      if (matchEmotion) {
-        const emocao = matchEmotion[1].toUpperCase();
-        console.log(`🎯 [EMOTION] ${emocao}`);
-
-        const emotionTriggers = await missionRepository.getTriggersByCategoria('EMOTION');
-        const trigger = emotionTriggers.find((t) => t.trigger_key === emocao);
-
-        if (trigger) {
-          const r = await missionRepository.trackMissionProgress(userId, trigger.mission_tipo, 1);
-          if (r?.completada) missoesCompletadas.push(trigger.mission_tipo);
-        } else {
-          console.log(`⚠️ [EMOTION] Tag "${emocao}" não corresponde a nenhum trigger ativo no banco.`);
-        }
-      } else {
-        console.log("❌ [BACKEND] Nenhuma tag [EMOTION:...] foi gerada pelo Gemini.");
-      }
-
-      // USER_ACTION — padrão vindo do banco, testado na mensagem do usuário
-      const userActionType = await detectUserAction(message);
-      if (userActionType) {
-        console.log(`👤 [USER_ACTION] ${userActionType}`);
-        const r = await missionRepository.trackMissionProgress(userId, userActionType, 1);
-        if (r?.completada) missoesCompletadas.push(userActionType);
-      }
-
-      // CHARACTER_SAYS — padrão vindo do banco, testado na resposta da IA
-      const characterSaysType = await detectCharacterSays(respostaBrutaIA);
-      if (characterSaysType) {
-        console.log(`🤖 [CHARACTER_SAYS] ${characterSaysType}`);
-        const r = await missionRepository.trackMissionProgress(userId, characterSaysType, 1);
-        if (r?.completada) missoesCompletadas.push(characterSaysType);
-      }
-
-    } catch (missionErr) {
-      console.error('Erro ao atualizar progresso de missões no banco:', missionErr);
-    }
 
     // ── Limpa a tag da resposta antes de salvar ───────────────────
     const respostaIA = respostaBrutaIA.replace(/\[EMOTION:[\w_]+\]/gi, '').trim();

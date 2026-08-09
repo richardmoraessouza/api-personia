@@ -364,14 +364,46 @@ export const getPopularWeekCharacters = async () => {
     ORDER BY wv.view_count DESC
     LIMIT 10
   `;
+
   const result = await db.query(query);
-  return result.rows;
+  const rows = result.rows;
+
+  if (rows.length >= 10) {
+    return rows;
+  }
+
+  const missing = 10 - rows.length;
+  const existingIds = rows.map((row) => row.public_id);
+  const fallbackParams = existingIds.length > 0 ? [existingIds, missing] : [missing];
+  const fallbackQuery = `
+    SELECT p.public_id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao,
+           p.visualizacoes, p.tags_slugs AS tags,
+           COUNT(f.id) AS quantidade_favoritos
+    FROM personia2.personagens p
+    LEFT JOIN personia2.favoritos f ON p.id = f.personagem_id
+    WHERE p.is_public = true
+      AND p.fotoia IS NOT NULL
+      AND p.fotoia <> '/semPerfil.jpg'
+      ${existingIds.length > 0 ? 'AND p.public_id <> ALL($1::text[])' : ''}
+    GROUP BY p.id, p.public_id, p.nome, p.fotoia, p.tipo_personagem, p.usuario_id, p.bio, p.descricao, p.visualizacoes, p.tags_slugs
+    ORDER BY
+      CASE WHEN p.criado_em >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END DESC,
+      p.visualizacoes DESC,
+      random()
+    LIMIT $${existingIds.length > 0 ? 2 : 1};
+  `;
+
+  const fallbackResult = await db.query(fallbackQuery, fallbackParams);
+  return [...rows, ...fallbackResult.rows];
 };
 
 // FRONTEND-FACING: sem id interno na resposta.
 // OBS: o WHERE id NOT IN continua usando o id interno (é filtro/join, não vaza pro cliente).
 export const getCharactersPaginated = async (limit, offset, seed = 0.5, popularIds = []) => {
-  const cacheKey = `explore:v2:${limit}:${offset}:${seed}:${popularIds.join(',')}`;
+  const requestedLimit = Number(limit);
+  const safeLimit = Number.isFinite(requestedLimit) && requestedLimit > 0 ? Math.min(requestedLimit, 20) : 20;
+  const safeOffset = Number.isFinite(Number(offset)) && Number(offset) > 0 ? Number(offset) : 0;
+  const cacheKey = `explore:v2:${safeLimit}:${safeOffset}:${seed}:${popularIds.join(',')}`;
 
   try {
     const cachedData = await redisClient.get(cacheKey);
@@ -395,11 +427,11 @@ export const getCharactersPaginated = async (limit, offset, seed = 0.5, popularI
       FROM personia2.personagens p
       WHERE p.id NOT IN (${excludeIds.join(',')})
         AND p.is_public = true
-      ORDER BY p.visualizacoes DESC
+      ORDER BY p.visualizacoes DESC, random()
       LIMIT $1 OFFSET $2
   `;
 
-  const result = await db.query(query, [limit, offset]);
+  const result = await db.query(query, [safeLimit, safeOffset]);
   const data = result.rows;
 
   try {

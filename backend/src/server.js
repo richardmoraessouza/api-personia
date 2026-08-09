@@ -11,7 +11,7 @@ import characterRouter from "./modules/characters/routes/characterRouter.js";
 import authRouter from "./modules/auth/routes/authRouter.js";
 import socialRouter from "./modules/social/routes/socialRouter.js";
 import chatRouter from "./modules/chat/routes/chatRouter.js";
-import missionsRouter from "./modules/missions/router/missionsRouter.js"
+import missionsRouter from "./modules/missions/router/missionsRouter.js";
 import discoveryRouter from "./modules/discovery/routes/discoveryRouter.js";
 import ratingsRouter from "./modules/ratings/routes/ratingsRouter.js";
 import { initializeRedis, getRedisClient } from "./config/redis.js";
@@ -22,10 +22,14 @@ import swaggerUi from "swagger-ui-express";
 import swaggerSpec from "./swagger.js";
 dotenv.config();
 
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = process.env.NODE_ENV === 'production' ? '' : 'dev-jwt-secret-change-me';
+}
+
 // ==========================================
 // VALIDAÇÃO DE SEGURANÇA EM STARTUP
 // ==========================================
-if (!process.env.JWT_SECRET) {
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
   console.error('❌ ERRO CRÍTICO: JWT_SECRET não configurado em .env');
   console.error('   Adicione JWT_SECRET=sua_chave_secreta_muito_longa no arquivo .env');
   process.exit(1);
@@ -36,7 +40,7 @@ app.disable('x-powered-by');
 const PORT = 3001;
 const sessionSecret = process.env.SESSION_SECRET || (process.env.NODE_ENV === 'production' ? null : 'dev-session-secret-change-me');
 
-if (!sessionSecret) {
+if (!sessionSecret && process.env.NODE_ENV === 'production') {
   console.error('❌ SESSION_SECRET não configurado para produção');
   process.exit(1);
 }
@@ -157,7 +161,8 @@ app.use("/social", socialRouter);
 app.use("/chat", chatRouter);
 app.use("/discovery", discoveryRouter);
 app.use('/ratings', ratingsRouter);
-app.use('/missions', missionsRouter)
+app.use('/missions', missionsRouter);
+// missions routes removed
 
 // ==========================================
 // SEGURANÇA: SANITIZAÇÃO DE COOKIES

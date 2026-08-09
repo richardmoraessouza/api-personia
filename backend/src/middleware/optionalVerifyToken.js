@@ -3,11 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET;
-
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET não configurado. Adicione ao arquivo .env');
-}
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-jwt-secret-change-me';
 
 const clearAuthCookie = (res) => {
   const isProduction = process.env.NODE_ENV === 'production';

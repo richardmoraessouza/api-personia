@@ -66,7 +66,44 @@ export const getRecommendationsByWeight = async (usuarioId, page = 1, limit = 20
   `;
 
   const result = await db.query(query, [usuarioId, limit, offset]);
-  return result.rows;
+  const rows = result.rows;
+
+  if (rows.length >= limit) {
+    return rows;
+  }
+
+  const missing = limit - rows.length;
+  const existingIds = rows.map((row) => row.public_id);
+  const fallbackParams = existingIds.length > 0 ? [usuarioId, existingIds, missing] : [usuarioId, missing];
+  const fallbackQuery = `
+    SELECT 
+      p.public_id,
+      p.nome,
+      p.fotoia,
+      p.bio,
+      p.usuario_id,
+      p.visualizacoes,
+      p.tags_slugs AS tags,
+      COUNT(f.id) AS quantidade_favoritos
+    FROM personia2.personagens p
+    LEFT JOIN personia2.favoritos f ON p.id = f.personagem_id
+    WHERE p.is_public = true
+      AND p.fotoia IS NOT NULL
+      AND p.fotoia <> '/semPerfil.jpg'
+      AND p.id NOT IN (
+        SELECT personagem_id FROM personia2.recent_characters WHERE usuario_id = $1
+      )
+      ${existingIds.length > 0 ? 'AND p.public_id <> ALL($2::text[])' : ''}
+    GROUP BY p.id, p.public_id, p.nome, p.fotoia, p.bio, p.usuario_id, p.visualizacoes, p.tags_slugs
+    ORDER BY
+      CASE WHEN p.criado_em >= NOW() - INTERVAL '7 days' THEN 1 ELSE 0 END DESC,
+      p.visualizacoes DESC,
+      random()
+    LIMIT $${existingIds.length > 0 ? 3 : 2};
+  `;
+
+  const fallbackResult = await db.query(fallbackQuery, fallbackParams);
+  return [...rows, ...fallbackResult.rows];
 };
 
 // apdate tag score for user when they interact with a character (like, favorite, etc.)

@@ -1,13 +1,10 @@
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import * as authService from '../modules/auth/services/authService.js';
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET;
-
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET não configurado. Adicione ao arquivo .env');
-}
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-jwt-secret-change-me';
 
 const clearAuthCookie = (res) => {
   const isProduction = process.env.NODE_ENV === 'production';
@@ -31,7 +28,7 @@ const extractToken = (req) => {
   return match ? match[1] : null;
 };
 
-export const verifyToken = (req, res, next) => {
+export const verifyToken = async (req, res, next) => {
   const token = extractToken(req);
 
   if (!token) {
@@ -49,6 +46,7 @@ export const verifyToken = (req, res, next) => {
     }
 
     req.user = { ...decoded, id: userId };
+    await authService.markUserOnlineService(userId);
     return next();
   } catch (err) {
     clearAuthCookie(res);
