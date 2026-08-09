@@ -100,6 +100,17 @@ export const findUserByGmail = async (gmail) => {
   return result.rows[0];
 };
 
+export const updateUserOnlineStatus = async (id, isOnline) => {
+  const query = `
+    UPDATE personia2.usuarios
+    SET is_online = $2
+    WHERE id = $1
+    RETURNING id
+  `;
+
+  const result = await db.query(query, [id, isOnline]);
+  return result.rows[0] || null;
+};
 
 // =========================
 // SEARCH BY EMAIL

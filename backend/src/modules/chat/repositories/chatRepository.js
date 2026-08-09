@@ -1,4 +1,5 @@
 import db from '../../../config/db.js';
+import { createHash } from 'crypto';
 
 const personagemCache = {};
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -104,6 +105,47 @@ export async function getCharacterByIdOrPublicId(identifier) {
 
   return await getCharacterByPublicId(identifier);
 }
+
+export const findOrCreateAnonymousUser = async (anonymousKey) => {
+  const key = String(anonymousKey || '').trim();
+
+  if (!key) {
+    throw new Error('ANONYMOUS_KEY_REQUIRED');
+  }
+
+  const hash = createHash('sha256').update(key).digest('hex');
+  const derivedId = 1_000_000_000 + (parseInt(hash.slice(0, 8), 16) % 1_000_000_000);
+  const username = `anon_${hash.slice(0, 10)}`;
+  const email = `anon_${hash.slice(0, 12)}@anon.local`;
+
+  const insertResult = await db.query(
+    `INSERT INTO personia2.usuarios (id, gmail, nome, username)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (id) DO NOTHING
+     RETURNING id`,
+    [derivedId, email, 'Usuário anônimo', username]
+  );
+
+  if (insertResult.rows[0]) {
+    return insertResult.rows[0].id;
+  }
+
+  const existing = await db.query(
+    `SELECT id FROM personia2.usuarios WHERE id = $1 LIMIT 1`,
+    [derivedId]
+  );
+
+  if (existing.rows[0]) {
+    return existing.rows[0].id;
+  }
+
+  const fallback = await db.query(
+    `SELECT id FROM personia2.usuarios WHERE username = $1 LIMIT 1`,
+    [username]
+  );
+
+  return fallback.rows[0]?.id ?? derivedId;
+};
 
 /**
  * Get an existing chat ID or create one if it doesn't exist (Idempotent)

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as chatController from '../controllers/chatController.js';
 import { saveTime, getTime } from '../controllers/chatController.js';
 import { verifyToken } from '../../../middleware/verifyToken.js';
+import { optionalVerifyToken } from '../../../middleware/optionalVerifyToken.js';
 import { chatLimiter } from '../../../middleware/rateLimiter.js';
 import { validateChatMessage, validateCharacterId } from '../../../middleware/inputValidators.js';
 
@@ -42,7 +43,7 @@ const router = Router();
  *       500:
  *         description: Erro interno do servidor
  */
-router.post('/chat/:personagemId', verifyToken, chatLimiter, validateChatMessage, chatController.chatComPersonagem);
+router.post('/chat/:personagemId', optionalVerifyToken, chatLimiter, validateChatMessage, chatController.chatComPersonagem);
 
 /**
  * @swagger
@@ -73,7 +74,7 @@ router.post('/chat/:personagemId', verifyToken, chatLimiter, validateChatMessage
  *       200:
  *         description: Histórico carregado
  */
-router.get('/chat/:personagemId/historico', verifyToken, chatController.getHistoricoChat);
+router.get('/chat/:personagemId/historico', optionalVerifyToken, chatController.getHistoricoChat);
 
 /**
  * @swagger
@@ -101,7 +102,7 @@ router.get('/chat/:personagemId/historico', verifyToken, chatController.getHisto
  *       404:
  *         description: Mensagem não encontrada
  */
-router.get('/chat/:personagemId/message/:messageId', verifyToken, chatController.getMessageById);
+router.get('/chat/:personagemId/message/:messageId', optionalVerifyToken, chatController.getMessageById);
 
 /**
  * @swagger
@@ -124,7 +125,7 @@ router.get('/chat/:personagemId/message/:messageId', verifyToken, chatController
  *       500:
  *         description: Erro interno
  */
-router.delete('/:personagemId/limpar', verifyToken, validateCharacterId, chatController.limparMemoria);
+router.delete('/:personagemId/limpar', optionalVerifyToken, validateCharacterId, chatController.limparMemoria);
 
 /**
  * @swagger
@@ -148,7 +149,7 @@ router.delete('/:personagemId/limpar', verifyToken, validateCharacterId, chatCon
  *       200:
  *         description: Histórico encontrado
  */
-router.get('/:userId/:characterId/history', verifyToken, chatController.getHistory);
+router.get('/:userId/:characterId/history', optionalVerifyToken, chatController.getHistory);
 
 /**
  * @swagger
@@ -182,7 +183,7 @@ router.get('/:userId/:characterId/history', verifyToken, chatController.getHisto
  *       400:
  *         description: Dados inválidos
  */
-router.post('/:userId/:characterId/messages', verifyToken, chatController.createMessage);
+router.post('/:userId/:characterId/messages', optionalVerifyToken, chatController.createMessage);
 
 /**
  * @swagger
@@ -205,7 +206,7 @@ router.post('/:userId/:characterId/messages', verifyToken, chatController.create
  *       404:
  *         description: Mensagem não encontrada
  */
-router.delete('/messages/:id', verifyToken, chatController.deleteMessage);
+router.delete('/messages/:id', optionalVerifyToken, chatController.deleteMessage);
 
 /**
  * @swagger
@@ -232,7 +233,7 @@ router.delete('/messages/:id', verifyToken, chatController.deleteMessage);
  *       200:
  *         description: Mensagem atualizada
  */
-router.patch('/messages/:id/pin', verifyToken, chatController.togglePinMessage);
+router.patch('/messages/:id/pin', optionalVerifyToken, chatController.togglePinMessage);
 
 /**
  * @swagger
@@ -253,7 +254,7 @@ router.patch('/messages/:id/pin', verifyToken, chatController.togglePinMessage);
  *       200:
  *         description: Lista de mensagens fixadas
  */
-router.get('/chats/:chatId/pinned', verifyToken, chatController.getPinnedMessages);
+router.get('/chats/:chatId/pinned', optionalVerifyToken, chatController.getPinnedMessages);
 
 
 /**
@@ -356,6 +357,6 @@ router.get('/conversation-time/:characterId', verifyToken, getTime);
  *       500:
  *         description: Erro interno
  */
-router.delete('/:publicId/mensagens', verifyToken, chatController.clearChatHistory);
+router.delete('/:publicId/mensagens', optionalVerifyToken, chatController.clearChatHistory);
 
 export default router;

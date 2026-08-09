@@ -20,6 +20,16 @@ const buildSafeUserPayload = (usuario) => ({
   hide_following: usuario.hide_following ?? false
 });
 
+export const markUserOnlineService = async (id) => {
+  if (!id) return null;
+  return authRepository.updateUserOnlineStatus(id, true);
+};
+
+export const markUserOfflineService = async (id) => {
+  if (!id) return null;
+  return authRepository.updateUserOnlineStatus(id, false);
+};
+
 // =========================
 // CREATE USER
 // =========================
@@ -42,6 +52,8 @@ export const createUserService = async (data) => {
     imgPerfil,
     username: normalizedUsername
   });
+
+  await markUserOnlineService(user.id);
 
   const token = jwt.sign(
     {
@@ -77,6 +89,8 @@ export const loginUserService = async (gmail) => {
     throw new Error(AUTH_RULES.USER_NOT_FOUND_ERROR);
   }
 
+  await markUserOnlineService(usuario.id);
+
   const token = jwt.sign(
     {
       id: usuario.id,
@@ -101,6 +115,8 @@ export const getCurrentUserData = async (id) => {
   if (!usuario) {
     throw new Error('USUARIO_NAO_ENCONTRADO');
   }
+
+  await markUserOnlineService(id);
 
   return buildSafeUserPayload(usuario);
 };

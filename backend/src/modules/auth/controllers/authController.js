@@ -112,7 +112,11 @@ export const loginUser = async (req, res) => {
   }
 };
 
-export const logoutUser = (req, res) => {
+export const logoutUser = async (req, res) => {
+  if (req.user?.id) {
+    await authService.markUserOfflineService(req.user.id);
+  }
+
   clearAuthCookie(res);
   return res.status(200).json({ sucesso: true });
 };

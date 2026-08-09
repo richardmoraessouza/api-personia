@@ -1,20 +1,15 @@
-import { Router } from 'express';
-import { getDailyMissions, claimMission } from '../controller/missionController.js';
-import { verifyToken } from '../../../middleware/verifyToken.js';
+import express from 'express';
+import { getDailyMissions, updateMissionProgress, claimMission } from '../controller/missionController.js';
 
-const router = Router();
+const router = express.Router();
 
-/**
- * @swagger
- * /missions/daily/{usuarioId}:
- * get:
- * summary: Busca ou gera as 5 missões aleatórias do dia para o usuário
- * tags:
- * - Missions
- */
-router.get('/daily/:usuarioId', verifyToken, getDailyMissions);
+// GET /missions/daily/:usuarioId
+router.get('/daily/:usuarioId', getDailyMissions);
 
-// Claim a mission reward (server-side verification, no XP amount accepted from client)
-router.post('/claim/:missionId', verifyToken, claimMission);
+// POST /missions/progress
+router.post('/progress', updateMissionProgress);
+
+// POST /missions/claim/:missionId
+router.post('/claim/:missionId', claimMission);
 
 export default router;

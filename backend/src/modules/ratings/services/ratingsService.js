@@ -2,7 +2,9 @@ import { GoogleGenAI } from "@google/genai";
 import * as ratingsRepository from '../repositories/ratingsRepository.js';
 import * as cacheService from '../../../services/cacheService.js'; 
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = process.env.GEMINI_API_KEY
+  ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+  : null;
 
 const CACHE_TTL = {
   TAGS_LIST: 24 * 60 * 60,
@@ -72,6 +74,11 @@ export const handleAutoClassification = async (characterId, characterData) => {
         "tags": [1, 5]
       }
     `;
+
+    if (!ai) {
+      console.warn('[Ratings Service] GEMINI_API_KEY não configurada; pulando classificação automática.');
+      return [];
+    }
 
     // 3. Execute structured content generation with Gemini
     const response = await ai.models.generateContent({
