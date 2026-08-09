@@ -1,371 +1,106 @@
-# PersonIA - API Backend
+# Chatback — Backend da plataforma Eikon
 
-API RESTful para interação com personagens alimentados por Inteligência Artificial. Permite que usuários conversem com personagens fictícios ou personas personalizadas através de uma interface de chat inteligente.
+Chatback é o backend modular da plataforma Eikon, responsável por autenticação, gerenciamento de usuários, personagens, chat com IA, sistema social, descoberta, avaliações, missões e integração com serviços externos. O projeto foi estruturado para combinar funcionalidade de produto com boas práticas de segurança, organização e escalabilidade.
 
-## � Sumário
+## Visão do projeto
 
-- [🔗 Links](#-links)
-- [✨ Funcionalidades Principais](#-funcionalidades-principais)
-- [🛠️ Tecnologias](#️-tecnologias)
-- [📦 Instalação](#-instalação)
-- [📚 Documentação da API](#-documentação-da-api)
-  - [🔐 Autenticação e Usuários](#-autenticação-e-usuários)
-  - [🎭 Personagens](#-personagens)
-  - [💬 Chat](#-chat)
-  - [👥 Sistema Social](#-sistema-social)
-- [📝 Códigos de Status HTTP](#-códigos-de-status-http)
-- [🔒 Segurança](#-segurança)
-- [🌍 Contato](#-contato)
-- [🤝 Contribuindo](#-contribuindo)
+Este backend suporta uma plataforma de experiência conversacional com IA, oferecendo uma camada robusta para:
 
-## �🔗 Links
+- autenticação e autorização;
+- persistência de dados e regras de negócio;
+- integração com modelos de linguagem e serviços de armazenamento;
+- operação segura em produção com cache, rate limiting e proteção de headers.
 
-- 🌐 **Aplicação Web**: [https://personia.netlify.app/](https://personia.netlify.app/)
-- 📦 **Repositório GitHub**: [https://github.com/richardmoraessouza/api-personia](https://github.com/richardmoraessouza/api-personia)
-- 🚀 **API em Produção**: [https://api-personia.onrender.com](https://api-personia.onrender.com)
+Para recrutadores, o projeto demonstra um backend com foco em produto real, arquitetura modular e atenção a segurança e operação.
 
-## ✨ Funcionalidades Principais
+## Principais capacidades
 
-- 💬 **Chat com Personagens IA**: Converse com personagens alimentados por IA com personalidades únicas
-- 🎨 **Dois Tipos de Personagens**: 
-  - Personagens fictícios de obras conhecidas
-  - Personas personalizadas criadas pelos usuários
-- 👤 **Sistema de Usuários**: Cadastro, login e perfis personalizados
-- 🔐 **Autenticação JWT**: Sistema seguro de autenticação
-- 📊 **Gerenciamento de Personagens**: Crie, edite e gerencie seus personagens
-- 👥 **Sistema Social**: Siga outros usuários e veja seus personagens
-- 🎯 **Limite para Anônimos**: Usuários não logados têm limite de 20 mensagens
+- autenticação com JWT e fluxo de usuários;
+- cadastro e gestão de personagens;
+- chat com IA e orquestração de prompts;
+- sistema social, descoberta e interação entre usuários;
+- avaliações, missões e mecanismos de engajamento;
+- integração com Redis, PostgreSQL, Supabase e APIs de IA.
 
-## 🛠️ Tecnologias
+## Stack técnica
 
-- **Node.js** + **Express.js**
-- **PostgreSQL**
-- **OpenAI API** (GPT-4o-mini)
-- **JWT** para autenticação
-- **CORS** habilitado
+- Node.js + Express
+- JavaScript ES modules
+- PostgreSQL
+- Redis
+- Supabase Storage
+- OpenAI / Google GenAI
+- Swagger para documentação da API
+- Docker Compose para ambiente local
 
-## 📦 Instalação
+## Arquitetura
+
+O projeto foi organizado em módulos por domínio, como:
+
+- auth
+- users
+- characters
+- chat
+- social
+- discovery
+- ratings
+- missions
+- cookies
+
+Essa estrutura facilita manutenção, evolução e compreensão do sistema por novos desenvolvedores.
+
+## Segurança e operação
+
+O backend incorpora camadas de segurança importantes, como:
+
+- Helmet para headers HTTP;
+- CORS configurado;
+- CSRF protection;
+- rate limiting;
+- sanitização e proteção de cookies;
+- cache distribuído com Redis.
+
+Esses pontos mostram maturidade para ambientes reais e para projetos com exigência de confiabilidade.
+
+## Como rodar localmente
 
 ### Pré-requisitos
 
-- Node.js (versão LTS recomendada)
-- PostgreSQL instalado e configurado
-- Chaves da API OpenAI
+- Node.js
+- Docker e Docker Compose
+- variáveis de ambiente configuradas
 
-### Passos
+### Opção 1 — com Docker
 
-1. Clone o repositório:
 ```bash
-git clone https://github.com/richardmoraessouza/api-personia.git
-cd api-personia/backend
+cd chatback
+docker-compose up -d
 ```
 
-2. Instale as dependências:
+### Opção 2 — modo local
+
 ```bash
+cd chatback/backend
 npm install
-```
-
-3. Inicie o servidor:
-```bash
-npm start
-```
-
-Para desenvolvimento com auto-reload:
-```bash
 npm run dev
 ```
 
-O servidor estará rodando em `http://localhost:3000` (ou na porta definida no `.env`).
+O backend ficará disponível em:
 
-## 📚 Documentação da API
-
-### Base URL
-
-**Produção:**
-```
-https://api-personia.onrender.com
+```text
+http://localhost:3001
 ```
 
-**Desenvolvimento Local:**
-```
-http://localhost:3000
-```
+## Destaques para recrutadores
 
-### Autenticação
+- backend preparado para produto completo e não apenas para protótipo;
+- arquitetura modular e organizada;
+- integração com IA, banco de dados, cache e armazenamento;
+- foco em segurança, escalabilidade e experiência de operação.
 
-Alguns endpoints requerem autenticação via JWT. Para autenticar, inclua o token no header:
+## Objetivo do projeto
 
-```
-Authorization: Bearer <seu_token_jwt>
-```
-
----
-
-## 🔐 Autenticação e Usuários
-
-### `POST /cadastra`
-Cadastra um novo usuário.
-
-**Autenticação:** Não requer  
-**Campos Obrigatórios:** `nome`, `gmail`  
-**Campos Opcionais:** `foto_perfil`, `descricao`
-
-**Request Body:**
-```json
-{
-  "nome": "João Silva",
-  "gmail": "joao@example.com",
-  "foto_perfil": "https://example.com/foto.jpg",
-  "descricao": "Descrição do perfil"
-}
-```
-
-**Response (201):**
-```json
-{
-  "mensagem": "Cadastro realizado!",
-  "id": 1,
-  "nome": "João Silva",
-  "gmail": "joao@example.com"
-}
-```
-
-**Erros:**
-- `400`: Campos obrigatórios ausentes ou inválidos
-- `500`: Erro interno do servidor
-
-### `POST /entrar`
-Realiza login e retorna token JWT.
-
-**Autenticação:** Não requer  
-**Campos Obrigatórios:** `gmail`
-
-**Request Body:**
-```json
-{
-  "gmail": "joao@example.com"
-}
-```
-
-**Response (200):**
-```json
-{
-  "id": 1,
-  "nome": "João Silva",
-  "gmail": "joao@example.com",
-  "foto_perfil": "https://example.com/foto.jpg",
-  "descricao": "Descrição do perfil",
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
-```
-
-**Erros:**
-- `400`: Gmail não fornecido
-- `404`: Usuário não encontrado
-- `500`: Erro interno do servidor
-
-### `GET /usuario/:id`
-Busca dados do próprio usuário (requer autenticação).
-
-**Autenticação:** Requer (JWT)  
-**Parâmetros:** `id` (ID do usuário)
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Response (200):**
-```json
-{
-  "id": 1,
-  "nome": "João Silva",
-  "foto_perfil": "https://example.com/foto.jpg",
-  "descricao": "Descrição do perfil"
-}
-```
-
-**Erros:**
-- `401`: Token inválido ou ausente
-- `404`: Usuário não encontrado
-- `500`: Erro interno do servidor
-
-### `GET /buscarUsuario/:gmail`
-Busca usuário pelo Gmail.
-
-**Autenticação:** Não requer  
-**Parâmetros:** `gmail` (endereço de email do usuário)
-
-**Response (200):**
-```json
-{
-  "gmail": "joao@example.com",
-  "nome": "João Silva",
-  "foto_perfil": "https://example.com/foto.jpg"
-}
-```
-
-**Erros:**
-- `404`: Usuário não encontrado
-- `500`: Erro interno do servidor
-
-### `PUT /editar/:id`
-Edita perfil do usuário (requer autenticação).
-
-**Autenticação:** Requer (JWT)  
-**Parâmetros:** `id` (ID do usuário)  
-**Campos Opcionais:** `nome`, `foto_perfil`, `descricao`
-
-**Headers:**
-```
-Authorization: Bearer <token>
-```
-
-**Request Body:**
-```json
-{
-  "nome": "João Silva Atualizado",
-  "foto_perfil": "https://example.com/nova-foto.jpg",
-  "descricao": "Nova descrição"
-}
-```
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "message": "Perfil atualizado com sucesso!",
-  "usuario_atualizado": {
-    "id": 1,
-    "nome": "João Silva Atualizado",
-    "gmail": "joao@example.com",
-    "foto_perfil": "https://example.com/nova-foto.jpg",
-    "descricao": "Nova descrição"
-  }
-}
-```
-
-**Erros:**
-- `401`: Token inválido ou ausente
-- `404`: Usuário não encontrado
-- `500`: Erro interno do servidor
-
-### `GET /perfil/:id`
-Busca perfil de outro usuário.
-
-**Autenticação:** Não requer  
-**Parâmetros:** `id` (ID do usuário)
-
-**Response (200):**
-```json
-{
-  "nome": "Maria Santos",
-  "foto_perfil": "https://example.com/foto.jpg",
-  "descricao": "Descrição do perfil"
-}
-```
-
-**Erros:**
-- `404`: Usuário não encontrado
-- `500`: Erro interno do servidor
-
----
-
-## 🎭 Personagens
-
-### `GET /personagens`
-Lista todos os personagens disponíveis.
-
-**Autenticação:** Não requer  
-
-**Response (200):**
-```json
-[
-  {
-    "id": 1,
-    "nome": "Sherlock Holmes",
-    "fotoia": "https://example.com/sherlock.jpg"
-  },
-  {
-    "id": 2,
-    "nome": "Personagem Personalizado",
-    "fotoia": "https://example.com/personagem.jpg"
-  }
-]
-```
-
-**Erros:**
-- `500`: Erro interno do servidor
-
-### `GET /personagens/:id`
-Busca detalhes de um personagem específico.
-
-**Autenticação:** Não requer  
-**Parâmetros:** `id` (ID do personagem)
-
-**Response (200):**
-```json
-{
-  "id": 1,
-  "nome": "Sherlock Holmes",
-  "fotoia": "https://example.com/sherlock.jpg",
-  "descricao": "Detetive famoso",
-  "usuario_id": 5
-}
-```
-
-**Erros:**
-- `404`: Personagem não encontrado
-- `500`: Erro interno do servidor
-
-### `GET /dadosPersonagem/:id`
-Busca todos os dados completos de um personagem.
-
-**Autenticação:** Não requer  
-**Parâmetros:** `id` (ID do personagem)
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "personagem": {
-    "id": 1,
-    "nome": "Sherlock Holmes",
-    "obra": "Sherlock Holmes",
-    "genero": "Masculino",
-    "personalidade": "Analítico, observador...",
-    "comportamento": "Metódico...",
-    "estilo": "Formal",
-    "historia": "História do personagem...",
-    "regras": "Regras específicas...",
-    "tipo_personagem": "ficcional",
-    "fotoia": "https://example.com/sherlock.jpg",
-    "descricao": "Detetive famoso",
-    "usuario_id": 5
-  }
-}
-```
-
-**Erros:**
-- `404`: Personagem não encontrado
-- `500`: Erro interno do servidor
-
-### `GET /buscarPerson/:usuarioId`
-Busca todos os personagens criados por um usuário específico.
-
-**Autenticação:** Não requer  
-**Parâmetros:** `usuarioId` (ID do usuário)
-
-**Response (200):**
-```json
-[
-  {
-    "id": 1,
-    "nome": "Personagem 1",
-    "fotoia": "https://example.com/foto1.jpg",
-    "descricao": "Descrição",
-    "tipo_personagem": "ficcional"
-  },
+Demonstrar capacidade de construir uma API robusta, segura e bem estruturada para uma aplicação de IA com forte componente de produto, dados e integração com serviços externos.
   {
     "id": 2,
     "nome": "Personagem 2",
