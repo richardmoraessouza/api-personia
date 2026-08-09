@@ -70,6 +70,7 @@ if (allowedOrigins.length === 0) {
   process.exit(1);
 }
 
+console.log(`✅ CORS configurado para as origens: ${allowedOrigins.join(', ')}`);
 // ==========================================
 // CONFIGURAÇÃO DE CORS RESTRITIVO (NO TOPO)
 // ==========================================
