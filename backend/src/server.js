@@ -45,6 +45,8 @@ if (!sessionSecret && process.env.NODE_ENV === 'production') {
   process.exit(1);
 }
 
+console.log("TESTE");
+
 // Documentação da API
 app.use(
   "/api-docs",
