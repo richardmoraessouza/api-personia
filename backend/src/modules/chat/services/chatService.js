@@ -245,7 +245,14 @@ export const loadConversationService = async (userId, characterId, limit = 30, o
   }
   
   const chatId = await chatRepository.getOrCreateChatId(userId, character.id);
-  return await chatRepository.getChatHistory(chatId, limit, offset);
+  let history = await chatRepository.getChatHistory(chatId, limit, offset);
+
+  if (offset === 0 && history.length === 0 && typeof character.primeiramensagem === 'string' && character.primeiramensagem.trim().length > 0) {
+    await chatRepository.saveMessage(chatId, 'model', character.primeiramensagem.trim(), null);
+    history = await chatRepository.getChatHistory(chatId, limit, offset);
+  }
+
+  return history;
 };
 
 export const sendMessageService = async (userId, characterId, role, content, replyToId = null) => {
