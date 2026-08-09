@@ -3,14 +3,19 @@
  * Todas as regras relacionadas a autenticação, login e gerenciamento de usuários
  */
 
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET || 'dev-jwt-secret-change-me';
+
+  if (!process.env.JWT_SECRET) {
+    console.warn('⚠️ JWT_SECRET não definido; usando fallback de desenvolvimento.');
+  }
+
+  return secret;
+};
+
 export const AUTH_RULES = {
   // JWT
-  JWT_SECRET: (() => {
-    if (!process.env.JWT_SECRET) {
-      throw new Error('❌ JWT_SECRET não definido em .env - SEGURANÇA CRÍTICA!');
-    }
-    return process.env.JWT_SECRET;
-  })(),
+  JWT_SECRET: getJwtSecret(),
   JWT_EXPIRATION: '24h',
   
   // Erros
