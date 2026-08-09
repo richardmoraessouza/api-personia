@@ -82,7 +82,14 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Access-Token', 'X-CSRF-Token']
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Access-Token',
+    'X-CSRF-Token',
+    'X-Anon-Id',
+    'X-Guest-Id'
+  ]
 }));
 
 // ==========================================
