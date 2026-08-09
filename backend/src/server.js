@@ -37,7 +37,7 @@ if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
 
 const app = express();
 app.disable('x-powered-by');
-const PORT = 3001;
+const PORT = Number(process.env.PORT || 3001);
 const sessionSecret = process.env.SESSION_SECRET || (process.env.NODE_ENV === 'production' ? null : 'dev-session-secret-change-me');
 
 if (!sessionSecret && process.env.NODE_ENV === 'production') {
@@ -51,6 +51,10 @@ app.use(
   swaggerUi.serve,
   swaggerUi.setup(swaggerSpec)
 );
+
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 // ==========================================
 // PROCESSAMENTO DE ORIGENS CORS (VIA .ENV)
